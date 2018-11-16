@@ -49,12 +49,16 @@ def pretrained_models(model_name, num_classes=2):
         model.fc = nn.Linear(in_fc, num_classes) # 替换最后一层fc
         parameters_to_update = model.fc.parameters() 
 
-              
-    return model, parameters_to_update        
+    elif model_name == 'alexnet':
+        model = models.AlexNet(pretrained=True)
+
+          
+    return model        
 
 '''
 # =============================================================================
 #  是不是能把pretrained model写成一个类，方便的使用
+#  这个new model怎么跟自定义model形成映射关系？
 # =============================================================================
 class Pretrained_Models(nn.Module):
     

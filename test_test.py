@@ -5,10 +5,12 @@ Created on Thu Nov 15 15:16:51 2018
 
 @author: ubuntu
 """
-
+from model.vgg16 import VGG16
+from model.Pretrainedmodels import pretrained_models
 from torch import nn
 from collections import OrderedDict
 import torch
+
 ''' 这一段可以看到怎么把参数加到_parameters变量中
     1. model对象调用__setattr__()方法，pytorch重写了这个方法
     2. 在__setattr__()方法中调用register_parameters()函数
