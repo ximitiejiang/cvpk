@@ -5,7 +5,7 @@ Created on Fri Nov 16 09:27:12 2018
 
 @author: suliang
 """
-
+import math
 def fc_reset_parameters(weight, bias):
     '''该代码是在linear class层中的子函数，对该模型的参数w,b进行初始化
     为了便于调试，去掉了self.

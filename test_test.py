@@ -22,28 +22,19 @@ model._parameters
 '''
 
 
-''' 这一段可以看到怎么把
+''' 这一段可以看到怎么把nn.sequential里边的module加到_module变量中去。
 '''
-#model = nn.Module()
-#sub_model1 = nn.Linear(2,2)
-#sub_model2 = nn.Linear(2,2)
-#model_list = [sub_model1, sub_model2]
+inputs = torch.randn(1,3,224,224)
+labels = torch.tensor([[1, 0]])
 
-#model = nn.Sequential(
-#          nn.Conv2d(1,20,5),
-#          nn.ReLU(),
-#          nn.Conv2d(20,64,5),
-#          nn.ReLU()
-#        )
-inputs = torch.randn(1,1,16,16)
-labels = torch.tensor([[1]])
+#model = nn.Sequential(OrderedDict([
+#          ('conv1', nn.Conv2d(1,20,5)),
+#          ('relu1', nn.ReLU()),
+#          ('conv2', nn.Conv2d(20,64,5)),
+#          ('relu2', nn.ReLU())
+#        ]))
 
-model = nn.Sequential(OrderedDict([
-          ('conv1', nn.Conv2d(1,20,5)),
-          ('relu1', nn.ReLU()),
-          ('conv2', nn.Conv2d(20,64,5)),
-          ('relu2', nn.ReLU())
-        ]))
+model = pretrained_models('vgg16',num_classes=2)
 criterion = torch.nn.CrossEntropyLoss() 
 optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
@@ -58,3 +49,4 @@ outputs = model(inputs)
 loss = criterion(outputs, labels)     # 这一步有可能很复杂的扩展
 loss.backward()    # 更新梯度                     
 optimizer.step()   # 更新参数
+
