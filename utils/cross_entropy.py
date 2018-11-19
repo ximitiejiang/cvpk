@@ -34,6 +34,9 @@ def log_softmax(input, dim=None, _stacklevel=3):
 
 def nll_loss(input, target, weight=None, size_average=None, ignore_index=-100,
              reduce=None, reduction='elementwise_mean'):
+    '''nll_loss字面上是负对数最大似然损失，最大似然函数就是概率最大函数，对应就是softmax函数
+    
+    '''
     r"""The negative log likelihood loss.
 
     See :class:`~torch.nn.NLLLoss` for details.
@@ -107,7 +110,7 @@ def cross_entropy(input, target, weight=None, size_average=None, ignore_index=-1
                   reduce=None, reduction='elementwise_mean'):
     '''交叉熵损失函数，基于model的output和target来计算loss
     输入：
-        input：即模型输出outputs
+        input：即模型输出outputs feature map
         target：即标签数据labels
     输出：
         loss
@@ -161,3 +164,21 @@ def test_cross_entropy(input, target):
     logsoftmax = input.logsoftmax()
     
 
+def python_softmax_algorithmn():
+    '''在机器学习中，softmax算法是一种多分类算法，也叫softmax regression
+    基本原理是：把x先定义权值wi * xi，然后通过softmax()函数把wixi的结果映射到[0,1]之间作为概率输出
+    对比逻辑回归原理，是通过sigmoid()逻辑函数把wixi的结果映射到二值0/1作为分类输出
+    
+    对比神经网络原理，logistic回归和softmax回归可认为是只有一层的fc全连接层，且只有一个输出节点
+    且激活函数的配置分别采用sigmoid函数和softmax函数，而不是神经网络的relu()函数
+    用sigmoid函数只能做两分类问题，用softmax函数可以做多分类问题。
+    
+    '''
+    pass
+    
+    
+    
+    
+    
+    
+    

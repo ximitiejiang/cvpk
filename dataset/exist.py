@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Nov 18 11:08:56 2018
+Created on Mon Nov 19 15:14:26 2018
 
-@author: ubuntu
+@author: suliang
 """
+
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
@@ -45,7 +46,7 @@ def exist_datasets(name, root, train=True, transform =None, download=False):
         data
         默认数据没有做transform，如果需要可自定义transform之后再创建数据对象    
     '''
-    if train:
+    if train:  # for trainsets
         if name == 'MNIST':
             '''从MNIST源码看，root文件夹需定义到xxx/MNIST
             同时该MNIST文件夹下需要有processed,raw两个子文件夹，源码会拼接成图片地址和提取label
@@ -64,53 +65,17 @@ def exist_datasets(name, root, train=True, transform =None, download=False):
         else:
             raise ValueError('not recognized data source!')
     
-    else:
-        
+    
+    
+    else:  # for testsets
+        pass
+    
     return datas
 
-    
-        
-class Mydatasets(Dataset):
-    '''创建自定义数据集, 继承Dataset类，可以？？？
-    '''
-    def __init__(self):
-        super().__init__()
-        
-    def __getitem__(self):
-        pass
-    
-    def __len__(self):
-        pass
-        
-    
-'''Dataloder类的是继承object的类，定义了__iter__(), __len__()方法
-没有定义__next__方法，所以是一个可迭代对象，而不是一个迭代器，可以用for循环而不能直接用next()
-但可通过iter()函数转换成迭代器后就可以用next()函数
-使用实例：
-    trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=0)
-    testloader = DataLoader(testset, batch_size=1, shuffle=True, num_workers=0)
-'''
 
-    
 if __name__ == '__main__':
-
-#    root = '/home/ubuntu/MyDatasets/MNIST'
+    
     root = '/Users/suliang/MyDatasets/MNIST'
-    transform_train = data_transform(train=True, input_size=32)
-    transform_test = data_transform(train =False, input_size=32)
-    
-    # 1. 创建数据对象
-    trainset = exist_datasets(name='MNIST', train=True, root=root, transform = transform_train)
-    testset = exist_datasets(name='MNIST', train=False, root=root, transform = transform_test)
-    
-    img, label = trainset[0]         
-    print(label)
-
-    
-    # 2. 做数据加载
-    trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=0)
-    testloader = DataLoader(testset, batch_size=1, shuffle=True, num_workers=0)
-    
-    imgs, labels = next(iter(trainloader))  # dataloader的数据格式
-    
-    
+    transform = data_transform(train=True, input_size=32)
+    datas = exist_datasets('MNIST', root, train=True, transform=transform)
+    img, label = datas[0]
