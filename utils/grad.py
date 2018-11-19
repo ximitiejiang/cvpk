@@ -20,6 +20,11 @@ def zero_grad(self):
             - 'weight_decay'
             - 'nesterov'
             ...
+    查看梯度：
+        optimizer.param_group[0]['params'].grad.data
+    查看学习率：
+        optimizer.param_group[0]['lr']
+        
     '''
     r"""Clears the gradients of all optimized :class:`torch.Tensor` s."""
     

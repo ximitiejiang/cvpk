@@ -105,6 +105,13 @@ def nll_loss(input, target, weight=None, size_average=None, ignore_index=-100,
 
 def cross_entropy(input, target, weight=None, size_average=None, ignore_index=-100,
                   reduce=None, reduction='elementwise_mean'):
+    '''交叉熵损失函数，基于model的output和target来计算loss
+    输入：
+        input：即模型输出outputs
+        target：即标签数据labels
+    输出：
+        loss
+    '''
     r"""This criterion combines `log_softmax` and `nll_loss` in a single
     function.
 
@@ -150,4 +157,7 @@ def cross_entropy(input, target, weight=None, size_average=None, ignore_index=-1
     return nll_loss(log_softmax(input, 1), target, weight, None, ignore_index, None, reduction)
 
 
+def test_cross_entropy(input, target):
+    logsoftmax = input.logsoftmax()
+    
 
