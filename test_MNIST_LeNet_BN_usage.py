@@ -9,8 +9,8 @@ Created on Tue Nov 20 11:47:26 2018
 
 """
 
-from model.lenet import LeNet5
-from utils.dataload import exist_datasets, data_transform
+from model.lenet import LeNet5, LeNet5_bn
+from dataset.existdata import exist_datasets, data_transform
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -25,20 +25,23 @@ def test_bn_in_alexnet():
     '''
     num_classes = 10
     ln = LeNet5(num_classes=num_classes)
+    ln_bn = LeNet5_bn(num_classes=num_classes)
 
     
     '''定义MNIST数据
     '''
-    root = '/Users/suliang/MyDatasets/MNIST'
+#    root = '/Users/suliang/MyDatasets/MNIST'  # for mac os
+    root = '/home/ubuntu/MyDatasets/MNIST'     # for ubuntu
+
     transform = data_transform(train=True, input_size = 32, 
                                mean = [0.5,0.5,0.5],
                                std = [0.5,0.5,0.5])
-    trainset = exist_datasets(name='MNIST', 
+    trainset = exist_datasets(name='mnist', 
                               root=root, 
                               train=True, 
                               transform =transform)
 
-    trainloader = DataLoader(trainset, batch_size=2, shuffle=True, num_workers=0)
+    trainloader = DataLoader(trainset, batch_size=8, shuffle=True, num_workers=0)
     
     len_loader = len(trainloader)
     
@@ -47,10 +50,10 @@ def test_bn_in_alexnet():
     from utils.trainer import Trainer
     trainer = Trainer(model=ln, num_classes=num_classes)
     
-    num_epoch = 1
+    num_epoch = 4
     
     for i in range(num_epoch):
-        print('epoch position: {}/{}'.format(i+1, num_epoch+1))
+        print('epoch position: {}/{}'.format(i+1, num_epoch))
 #        for j, (imgs, labels) in tqdm(enumerate(trainloader), total = len_loader):
         for j,(imgs, labels) in enumerate(trainloader):
             
