@@ -10,7 +10,7 @@ from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 
 
-def data_transform(train=True, input_size = 224):
+def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]):
     '''数据变换：如果要使用dataloader，就必须使用transform
     因为dataset为img格式，而dataloader只认tensor，所以在dataloader之前需要定义transform
     把img转换为tensor。这一步一般放在dataset步完成。
@@ -22,16 +22,14 @@ def data_transform(train=True, input_size = 224):
         transform = transforms.Compose([transforms.RandomResizedCrop(input_size),
                                         transforms.RandomHorizontalFlip(),
                                         transforms.ToTensor(),
-                                        transforms.Normalize([0.485, 0.456, 0.406], 
-                                                             [0.229, 0.224, 0.225])
+                                        transforms.Normalize(mean,std)
                                        ])
         
     else:
         transform = transforms.Compose([transforms.Resize(input_size),
                                         transforms.CenterCrop(input_size),
                                         transforms.ToTensor(),
-                                        transforms.Normalize([0.485, 0.456, 0.406], 
-                                                             [0.229, 0.224, 0.225])
+                                        transforms.Normalize(mean,std)
                                        ])
     return transform
 
@@ -65,7 +63,13 @@ def exist_datasets(name, root, train=True, transform =None, download=False):
             raise ValueError('not recognized data source!')
     
     else:
-        
+        if name == 'MNIST':
+            '''从MNIST源码看，root文件夹需定义到xxx/MNIST
+            同时该MNIST文件夹下需要有processed,raw两个子文件夹，源码会拼接成图片地址和提取label
+            '''
+            datas = datasets.MNIST(root=root, train=train, transform=transform, download=download)
+        else:
+            raise ValueError('not recognized data source!')
     return datas
 
     
@@ -84,8 +88,9 @@ class Mydatasets(Dataset):
         
     
 '''Dataloder类的是继承object的类，定义了__iter__(), __len__()方法
-没有定义__next__方法，所以是一个可迭代对象，而不是一个迭代器，可以用for循环而不能直接用next()
-但可通过iter()函数转换成迭代器后就可以用next()函数
+没有定义__next__方法，所以是一个可迭代对象，而不是一个迭代器!
+
+可以用for循环而不能直接用next(),但可通过iter()函数转换成迭代器后就可以用next()函数
 使用实例：
     trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=0)
     testloader = DataLoader(testset, batch_size=1, shuffle=True, num_workers=0)
@@ -105,6 +110,7 @@ if __name__ == '__main__':
     
     img, label = trainset[0]         
     print(label)
+    
 
     
     # 2. 做数据加载

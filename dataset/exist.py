@@ -50,6 +50,7 @@ def exist_datasets(name, root, train=True, transform =None, download=False):
         if name == 'MNIST':
             '''从MNIST源码看，root文件夹需定义到xxx/MNIST
             同时该MNIST文件夹下需要有processed,raw两个子文件夹，源码会拼接成图片地址和提取label
+            训练集：60,000张
             '''
             datas = datasets.MNIST(root=root, train=train, transform=transform, download=download)
             
