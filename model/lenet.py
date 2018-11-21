@@ -66,7 +66,8 @@ class LeNet5_bn(nn.Module):
         return x
 
 class LeNet5_super(nn.Module):
-    '''基于LeNet5的5层结构，但修改卷积传递层数，构建一个超级LeNet5
+    '''TODO:
+    基于LeNet5的5层结构，但修改卷积传递层数，构建一个超级LeNet5
     原有LeNet5的层数变化是1 -> 6 -> 16 -> 400 -> 120 -> 84 -> 10
     现参考Alexnet为更多层 1 -> 64 -> 128->25088->1024->10
     (参考pytorch实战计算机视觉P177)

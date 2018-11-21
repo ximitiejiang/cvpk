@@ -166,7 +166,7 @@ class Trainer(nn.Module):
         '''
         # grad通过backward()步已更新, 显示前10个batch的梯度
 #        if j<10
-        if j%1000==0:
+        if j%1000==0 and j!=0:
             out=[]
             for k,(name, p) in enumerate(self.model.named_parameters()):
                 out.append((name, p.grad.data.std()))
@@ -176,7 +176,7 @@ class Trainer(nn.Module):
     def _loss_output(self,j,loss):
         '''用于在循环步中导出loss
         '''
-        if j%1000 ==0:
+        if j%1000 ==0 and j!=0:
             write_txt((j,loss.item()), file_name='loss',type='a+')
      
     def _lr_output(self, j):
