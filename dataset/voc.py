@@ -1,9 +1,75 @@
+"""
+2018/11/22 新增transform在voc dataset中，统一由dataset内部进行transform
+"""
+
 import os
 import xml.etree.ElementTree as ET
-
 import numpy as np
+from PIL import Image
+from torchvision import transforms
 
-from utils.read_image import read_image
+def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]):
+    '''数据变换：如果要使用dataloader，就必须使用transform
+    因为dataset为img格式，而dataloader只认tensor，所以在dataloader之前需要定义transform
+    把img转换为tensor。这一步一般放在dataset步完成。
+    同时还可以在transform中定义一些数据增强。
+    
+    '''
+    
+    if train:
+        transform = transforms.Compose([transforms.RandomResizedCrop(input_size),
+                                        transforms.RandomHorizontalFlip(),
+                                        transforms.ToTensor(),
+                                        transforms.Normalize(mean,std)
+                                       ])
+        
+    else:
+        transform = transforms.Compose([transforms.Resize(input_size),
+                                        transforms.CenterCrop(input_size),
+                                        transforms.ToTensor(),
+                                        transforms.Normalize(mean,std)
+                                       ])
+    return transform
+    
+
+def read_image(path, dtype=np.float32, color=True):
+    """Read an image from a file.
+
+    This function reads an image from given file. The image is CHW format and
+    the range of its value is :math:`[0, 255]`. If :obj:`color = True`, the
+    order of the channels is RGB.
+
+    Args:
+        path (str): A path of image file.
+        dtype: The type of array. The default value is :obj:`~numpy.float32`.
+        color (bool): This option determines the number of channels.
+            If :obj:`True`, the number of channels is three. In this case,
+            the order of the channels is RGB. This is the default behaviour.
+            If :obj:`False`, this function returns a grayscale image.
+
+    Returns:
+        ~numpy.ndarray: An image.
+    """
+    f = Image.open(path)    
+    # step1: 字节形式[w,h]转向量形式[c,h,w]    
+    # step2: 转置
+    try:
+        if color:
+            img = f.convert('RGB')
+        else:
+            img = f.convert('P')
+        img = np.asarray(img, dtype=dtype)
+    finally:
+        if hasattr(f, 'close'):
+            f.close()
+    
+    if img.ndim == 2:
+        # reshape (H, W) -> (1, H, W)
+        img = img[np.newaxis]
+    else:
+        # transpose (H, W, C) -> (C, H, W)
+        img = img.transpose((2, 0, 1))
+
 
 class VOCBboxDataset:
     '''voc2007数据类
@@ -80,8 +146,7 @@ class VOCBboxDataset:
     """
 
     def __init__(self, data_dir, split='trainval',
-                 use_difficult=False, return_difficult=False,
-                 ):
+                 use_difficult=False, return_difficult=False):
 
         # if split not in ['train', 'trainval', 'val']:
         #     if not (split == 'test' and year == '2007'):

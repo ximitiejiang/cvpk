@@ -8,6 +8,8 @@ Created on Thu Nov 22 16:19:16 2018
 
 import visdom
 import torch
+import numpy as np
+
 class Visulization():
     '''这个可视化模块基于visdom进行显示，相关loss和accuracy的计算直接用源码计算
     先要在命令行运行python3 -m visdom.server
@@ -43,12 +45,12 @@ class Visulization():
                       win='accuracy',
                       name='accuracy',
                       update='append')
-        
+        '''
         self.vis.heatmap(X=np.outer(np.arange(1, 6), np.arange(1, 11)),
                         opts=dict(columnnames=['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'],
                                   rownames=['y1', 'y2', 'y3', 'y4', 'y5'],
                         colormap='Electric'))
-        
+        '''
         self.total_loss = 0
         self.total_correct = 0
         self.total_imgs = 0

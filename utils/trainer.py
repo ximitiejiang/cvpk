@@ -56,8 +56,8 @@ def write_txt(results, file_name='test', type='a+'):
     写入模式：a+ 自由读写，扩展模式，文件没有就创建
     写入模式：w+ 自由读写，覆盖模式
     '''
-    directory = '/Users/suliang/slcv/checkpoints/'            # for mac os
-#    directory = '/home/ubuntu/suliang_git/slcv/checkpoints'   # for ubuntu
+#    directory = '/Users/suliang/slcv/checkpoints/'            # for mac os
+    directory = '/home/ubuntu/suliang_git/slcv/checkpoints'   # for ubuntu
     file_path = os.path.join(directory, file_name)
         
     with open(file_path, type) as f:  # 以结尾写入的方式打开，只有'a'和'at'两种模式的指针是在文件末尾
@@ -74,7 +74,7 @@ class Trainer(nn.Module):
         super().__init__()
         self.model = model
         self.criterion = define_criterion('cross_entropy')
-        self.optimizer = define_optimizer('sgd', self.model.parameters())
+        self.optimizer = define_optimizer('adam', self.model.parameters())
         
 #        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 #        if torch.cuda.device_count() > 1:

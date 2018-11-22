@@ -11,10 +11,10 @@ from torch import nn
 
 class LeNet5(nn.Module):
     
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes=10, input_layers=3):
         super().__init__()
         self.features = nn.Sequential(
-                nn.Conv2d(3, 6, kernel_size=5),
+                nn.Conv2d(input_layers, 6, kernel_size=5),
                 nn.ReLU(inplace=True),
                 nn.MaxPool2d(kernel_size=2, stride=2),
                 nn.Conv2d(6, 16, kernel_size=5),
@@ -37,10 +37,10 @@ class LeNet5(nn.Module):
     
 class LeNet5_bn(nn.Module):
     
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes=10, input_layers=3):
         super().__init__()
         self.features = nn.Sequential(
-                nn.Conv2d(1, 6, kernel_size=5),
+                nn.Conv2d(input_layers, 6, kernel_size=5),
                 nn.BatchNorm2d(6),
                 
                 nn.ReLU(inplace=True),
@@ -72,10 +72,10 @@ class LeNet5_super(nn.Module):
     现参考Alexnet为更多层 1 -> 64 -> 128->25088->1024->10
     (参考pytorch实战计算机视觉P177)
     '''
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes=10, input_layers=3):
         super().__init__()
         self.features = nn.Sequential(
-                nn.Conv2d(1, 6, kernel_size=5),
+                nn.Conv2d(input_layers, 6, kernel_size=5),
                 nn.BatchNorm2d(6),
                 
                 nn.ReLU(inplace=True),
@@ -102,5 +102,5 @@ class LeNet5_super(nn.Module):
 
                 
 if __name__ == '__main__':
-    ln = LeNet5(num_classes=10)
+    ln = LeNet5(num_classes=10,input_layers=3)
     print(ln)
