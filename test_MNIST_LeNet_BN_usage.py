@@ -5,8 +5,17 @@ Created on Tue Nov 20 11:47:26 2018
 
 @author: suliang
 
-对比有无bn的alexnet在训练时的梯度值，是否bn能够很好的放置梯度值消失
-
+对比有无bn的alexnet在训练时的梯度值，是否bn能够很好的防止梯度值消失
+debug 记录
+    * batch_size 从2加到8后，loss有变好的趋势
+    * op采用adam或sgd差别不明显
+    * lr从0.001改为0.01后，发生梯度消失
+    * bn加进Lenet后效果不明显
+    * 前4个epoch的loss和精度数据始终不理想：loss在1.2->0.7, accuracy在16.5->18.3
+      可能跑个100个循环能好点
+    * batch_size 从8直接到64, epoch=8: loss继续好转到0.65。
+      但始终无法达到别人在epoch=8时0.1的水平，而且我的训练精度只有可怜的18%
+      问题还没找到！
 """
 
 from model.lenet import LeNet5, LeNet5_bn
@@ -21,17 +30,17 @@ def test_bn_in_alexnet():
     '''
     
     
-    '''定义模型
+    '''1. 定义模型
     '''
     num_classes = 10
     ln = LeNet5(num_classes=num_classes)
     ln_bn = LeNet5_bn(num_classes=num_classes)
 
     
-    '''定义MNIST数据
+    '''2. 定义MNIST数据
     '''
-#    root = '/Users/suliang/MyDatasets/MNIST'  # for mac os
-    root = '/home/ubuntu/MyDatasets/MNIST'     # for ubuntu
+    root = '/Users/suliang/MyDatasets/MNIST'  # for mac os
+#    root = '/home/ubuntu/MyDatasets/MNIST'     # for ubuntu
 
     transform = data_transform(train=True, input_size = 32, 
                                mean = [0.5,0.5,0.5],
@@ -41,16 +50,16 @@ def test_bn_in_alexnet():
                               train=True, 
                               transform =transform)
 
-    trainloader = DataLoader(trainset, batch_size=8, shuffle=True, num_workers=0)
+    trainloader = DataLoader(trainset, batch_size=64, shuffle=True, num_workers=0)
     
     len_loader = len(trainloader)
     
-    '''开始训练         
+    '''3. 开始训练         
     '''    
     from utils.trainer import Trainer
     trainer = Trainer(model=ln, num_classes=num_classes)
     
-    num_epoch = 4
+    num_epoch = 8
     
     for i in range(num_epoch):
         print('epoch position: {}/{}'.format(i+1, num_epoch))

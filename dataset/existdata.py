@@ -47,17 +47,27 @@ def exist_datasets(name, root, train=True, transform =None, download=False):
     '''
     if train:  # for trainsets
         if name == 'mnist':
-            '''从MNIST源码看，root文件夹需定义到xxx/MNIST
+            ''' 图片大小： 1x32x32, 单通道黑白图片
+                类别数：10，labels采用0-9的数字表示
+                训练集大小：60,000张图
+            从MNIST源码看，root文件夹需定义到xxx/MNIST
             同时该MNIST文件夹下需要有processed,raw两个子文件夹，源码会拼接成图片地址和提取label
-            训练集：60,000张
+            
             '''
             datas = datasets.MNIST(root=root, train=train, transform=transform, download=download)
+            classes = [0,1,2,3,4,5,6,7,8,9]
             
         elif name == 'cifar10':
-            '''从
+            ''' 图片大小：3x32x32, 三通道彩色图片
+                类别数：10, labels采用0-9的数字表示
+                训练集大小: 50,000张图片
+            从CIFAR10源码看，本地目录下需要有base_folder = 'cifar-10-batches-py'
+            同时压缩文件也不能删除filename = "cifar-10-python.tar.gz"
+            且训练集包含5个data_batch, 测试集包含1个test_batch
             '''
             datas = datasets.CIFAR10(root=root, train=train, transform=transform, download=download)
-
+            classes = ['plane','car','bird','cat','deer','dog','frog','horse','ship','truck']
+            
         elif name == 'cococaptions':
             datas = datasets.CocoCaptions(root=root, train=train, transform=transform, download=download)
             
@@ -96,8 +106,8 @@ if __name__ == '__main__':
 
     
     # 2. 做数据加载
-    trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=0)
-    testloader = DataLoader(testset, batch_size=1, shuffle=True, num_workers=0)
+    trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=2)
+    testloader = DataLoader(testset, batch_size=1, shuffle=True, num_workers=2)
     
     imgs, labels = next(iter(trainloader))  # dataloader的数据格式
     

@@ -14,7 +14,7 @@ class LeNet5(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-                nn.Conv2d(1, 6, kernel_size=5),
+                nn.Conv2d(3, 6, kernel_size=5),
                 nn.ReLU(inplace=True),
                 nn.MaxPool2d(kernel_size=2, stride=2),
                 nn.Conv2d(6, 16, kernel_size=5),
