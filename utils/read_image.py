@@ -10,6 +10,10 @@ import numpy as np
 from PIL import Image
 
 def read_image(path, dtype=np.float32, color=True):
+    '''该部分代码已经集成到voc dataset里边了，不再独立出来
+    即所有read/transform都集成到数据集中，出来直接进dataloader
+    '''
+    
     """Read an image from a file.
 
     This function reads an image from given file. The image is CHW format and

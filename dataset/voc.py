@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from PIL import Image
 from torchvision import transforms
+import torch
 
 def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]):
     '''数据变换：如果要使用dataloader，就必须使用transform
@@ -33,49 +34,41 @@ def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], s
     
 
 def read_image(path, dtype=np.float32, color=True):
-    """Read an image from a file.
-
-    This function reads an image from given file. The image is CHW format and
-    the range of its value is :math:`[0, 255]`. If :obj:`color = True`, the
-    order of the channels is RGB.
-
-    Args:
-        path (str): A path of image file.
-        dtype: The type of array. The default value is :obj:`~numpy.float32`.
-        color (bool): This option determines the number of channels.
-            If :obj:`True`, the number of channels is three. In this case,
-            the order of the channels is RGB. This is the default behaviour.
-            If :obj:`False`, this function returns a grayscale image.
-
-    Returns:
-        ~numpy.ndarray: An image.
+    """ 读取图片文件：color如果是True则返回3通道图片，color如果False则返回灰度图
     """
-    f = Image.open(path)    
+    f = Image.open(path)        # (W, H)
     # step1: 字节形式[w,h]转向量形式[c,h,w]    
     # step2: 转置
+    
     try:
-        if color:
-            img = f.convert('RGB')
+        if color:                       # f.mode可以看到本来就是RGB模式，所以convert没有影响
+            img = f.convert('RGB')      # f(W, H) -> img(W,H) 
         else:
             img = f.convert('P')
-        img = np.asarray(img, dtype=dtype)
+        img = np.asarray(img, dtype=dtype)  # (W,H) - >(H,W,C)
     finally:
         if hasattr(f, 'close'):
             f.close()
-    
+            
+""" img to array: np.asarray(img)
+    array to img: Image.fromarray(np.uint8(img))
+    考虑修改read_imge()，只做打开，把数据转换单独写成transform
+"""            
+
     if img.ndim == 2:
-        # reshape (H, W) -> (1, H, W)
-        img = img[np.newaxis]
+        img = img[np.newaxis]  # reshape (H, W) -> (1, H, W)
     else:
-        # transpose (H, W, C) -> (C, H, W)
-        img = img.transpose((2, 0, 1))
+        img = img.transpose((2, 0, 1))  # (H, W, C) -> (C, H, W)
 
 
 class VOCBboxDataset:
-    '''voc2007数据类
+    '''voc2007数据类: 训练集只有5011张图片，测试集有4952张图片，共计20个分类
+    分类中person的图片最多有2008张，最少的sheep有96张，在如此少样本下获得分类效果很难
+    图片尺寸：500x375或者375x500
     输入：
         data_dir： 数据的root地址, 比如/home/ubuntu/MyDatasets/VOCdevkit/VOC2007
         split：可选择'train', 'val', 'trainval', 'test'，其中test只对2007voc可用
+             train则取train的数据集，val则取validate数据集，trainval则取所有
         use_difficult：默认false
         return_difficult：默认false
         去掉了voc年份 '2007,'2012'的选择，只能用在2007版
@@ -88,73 +81,11 @@ class VOCBboxDataset:
         在read_image()做了一点：包括字节转向量和转置，使用之前还需要做(0,1)化和规范化
         
     '''
-    
-    """Bounding box dataset for PASCAL `VOC`_.
-    
 
-    .. _`VOC`: http://host.robots.ox.ac.uk/pascal/VOC/voc2012/
-
-    The index corresponds to each image.
-
-    When queried by an index, if :obj:`return_difficult == False`,
-    this dataset returns a corresponding
-    :obj:`img, bbox, label`, a tuple of an image, bounding boxes and labels.
-    This is the default behaviour.
-    If :obj:`return_difficult == True`, this dataset returns corresponding
-    :obj:`img, bbox, label, difficult`. :obj:`difficult` is a boolean array
-    that indicates whether bounding boxes are labeled as difficult or not.
-
-    The bounding boxes are packed into a two dimensional tensor of shape
-    :math:`(R, 4)`, where :math:`R` is the number of bounding boxes in
-    the image. The second axis represents attributes of the bounding box.
-    They are :math:`(y_{min}, x_{min}, y_{max}, x_{max})`, where the
-    four attributes are coordinates of the top left and the bottom right
-    vertices.
-
-    The labels are packed into a one dimensional tensor of shape :math:`(R,)`.
-    :math:`R` is the number of bounding boxes in the image.
-    The class name of the label :math:`l` is :math:`l` th element of
-    :obj:`VOC_BBOX_LABEL_NAMES`.
-
-    The array :obj:`difficult` is a one dimensional boolean array of shape
-    :math:`(R,)`. :math:`R` is the number of bounding boxes in the image.
-    If :obj:`use_difficult` is :obj:`False`, this array is
-    a boolean array with all :obj:`False`.
-
-    The type of the image, the bounding boxes and the labels are as follows.
-
-    * :obj:`img.dtype == numpy.float32`
-    * :obj:`bbox.dtype == numpy.float32`
-    * :obj:`label.dtype == numpy.int32`
-    * :obj:`difficult.dtype == numpy.bool`
-
-    Args:
-        data_dir (string): Path to the root of the training data. 
-            i.e. "/data/image/voc/VOCdevkit/VOC2007/"
-        split ({'train', 'val', 'trainval', 'test'}): Select a split of the
-            dataset. :obj:`test` split is only available for
-            2007 dataset.
-        year ({'2007', '2012'}): Use a dataset prepared for a challenge
-            held in :obj:`year`.
-        use_difficult (bool): If :obj:`True`, use images that are labeled as
-            difficult in the original annotation.
-        return_difficult (bool): If :obj:`True`, this dataset returns
-            a boolean array
-            that indicates whether bounding boxes are labeled as difficult
-            or not. The default value is :obj:`False`.
-
-    """
 
     def __init__(self, data_dir, split='trainval',
                  use_difficult=False, return_difficult=False):
 
-        # if split not in ['train', 'trainval', 'val']:
-        #     if not (split == 'test' and year == '2007'):
-        #         warnings.warn(
-        #             'please pick split from \'train\', \'trainval\', \'val\''
-        #             'for 2012 dataset. For 2007 dataset, you can pick \'test\''
-        #             ' in addition to the above mentioned splits.'
-        #         )
         id_list_file = os.path.join(
             data_dir, 'ImageSets/Main/{0}.txt'.format(split))
 
@@ -168,21 +99,17 @@ class VOCBboxDataset:
         return len(self.ids)
 
     def get_example(self, i):
-        """Returns the i-th example.
-
-        Returns a color image and bounding boxes. The image is in CHW format.
-        The returned image is RGB.
-
-        Args:
-            i (int): The index of the example.
-
-        Returns:
-            tuple of an image and bounding boxes
-
+        """ 返回第i张图片的：图片，bbox，label，difficult
+        输入：
+            函数绑定—__getitem__()作为切片调用函数，输入index号
+        输出：
+            img：C，H，W格式
+            bbox：几个bbox就有几行，每行4个坐标，比如[ymin,xmin,ymax,xmax]
+            label：几个bbox就有几个标签，比如[2,6,7]
+            difficult = None
         """
         id_ = self.ids[i]
-        anno = ET.parse(
-            os.path.join(self.data_dir, 'Annotations', id_ + '.xml'))
+        anno = ET.parse(os.path.join(self.data_dir, 'Annotations', id_ + '.xml'))
         bbox = list()
         label = list()
         difficult = list()
@@ -207,11 +134,16 @@ class VOCBboxDataset:
 
         # Load a image
         img_file = os.path.join(self.data_dir, 'JPEGImages', id_ + '.jpg')
-        img = read_image(img_file, color=True)
-
+        
+        img = Image.open(img_file)   # img为二进制图片
+        data = data_transform(train=True, input_size = 224, mean)(img)
+#        img = read_image(img_file, color=True)  # ??? 读出来类型就变成NoneType了
+        
+        # TODO: add transform here
+        
         # if self.return_difficult:
         #     return img, bbox, label, difficult
-        return img, bbox, label, difficult
+        return data, bbox, label, difficult
 
     __getitem__ = get_example
 

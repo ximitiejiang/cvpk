@@ -15,12 +15,18 @@ from torch.utils.data import DataLoader
 # 1. data
 # 基于源码确保该目录下有ImageSets/Main/文件夹
 
-data_root = '/home/ubuntu/MyDatasets/VOCdevkit/VOC2007'
+#data_root = '/home/ubuntu/MyDatasets/VOCdevkit/VOC2007'                     # for ubuntu
+data_root = '/Users/suliang/MyDatasets/PASCAL_VOC_2007/VOCdevkit2/VOC2007'   # for Mac os
 trainset = VOCBboxDataset(data_dir=data_root, split='trainval')
-trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=2)
+trainloader = DataLoader(trainset, batch_size=1, shuffle=False, num_workers=2)
 
 img, bbox, label, _ = trainset[12]
 
+
+next(iter(trainloader))
+
 # 2. model
+
+
 
 # 3. training
