@@ -23,7 +23,7 @@ from model.lenet import LeNet5, LeNet5_bn
 from dataset.existdata import exist_datasets, data_transform
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
+import sys
 
 
 def test_bn_in_alexnet():
@@ -36,13 +36,15 @@ def test_bn_in_alexnet():
     num_classes = 10
     ln = LeNet5(num_classes=num_classes, input_layers=1)
     ln_bn = LeNet5_bn(num_classes=num_classes, input_layers=1)
-
     
     '''2. 定义MNIST数据
     '''
-#    data_root = '/Users/suliang/MyDatasets/MNIST'  # for mac os
-    data_root = '/home/ubuntu/MyDatasets/MNIST'     # for ubuntu
 
+    if sys.platform == 'linux':    # for ubuntu
+        data_root = '/home/ubuntu/MyDatasets/MNIST'     # for ubuntu 
+    else:                          # for Mac os
+        data_root = '/Users/suliang/MyDatasets/MNIST'  # for mac os
+    
     transform = data_transform(train=True, input_size = 32, 
                                mean = [0.5,0.5,0.5],
                                std = [0.5,0.5,0.5])

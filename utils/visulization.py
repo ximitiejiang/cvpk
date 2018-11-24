@@ -64,7 +64,7 @@ if __name__ == '__main__':
 """ 
 from torchnet import meter
 from torchnet.logger import VisdomPlotLogger, VisdomLogger
-class Visulization_obsolate():
+class Visulization_tn():
     '''创建可视化类：该可视化模块基于torchnet的meter和logger模块计算，并利用visdom显示
     由于文档太简单，使用的人太少，当前先放弃进一步开发。用Visulization class替代
     

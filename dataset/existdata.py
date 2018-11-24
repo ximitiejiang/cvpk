@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]):
     '''数据变换：如果要使用dataloader，就必须使用transform
-    因为dataset为img格式，而dataloader只认tensor，所以在dataloader之前需要定义transform
-    把img转换为tensor。这一步一般放在dataset步完成。
+    因为dataset为img格式，而dataloader只认array格式和tensor格式，所以在dataloader之前需要定义transform
+    把img转换为array或者tensor。这一步一般放在dataset步完成。
     同时还可以在transform中定义一些数据增强。
     
     '''
@@ -103,9 +103,11 @@ if __name__ == '__main__':
     img, label = trainset[0]         
     print(label)
     
-
     
     # 2. 做数据加载
+    # dataloader很好用，dataset作为数据源可以给出array或者tensor，dataloader都可以转化为tensor输出
+    # 但dataloader中的dataset不能给出img的二进制格式否则报错，至少先转换为array或tensor
+    # dataloader的输出： dataloder本质是一个迭代对象，可直接用for，输出等效于一次切片。
     trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=2)
     testloader = DataLoader(testset, batch_size=1, shuffle=True, num_workers=2)
     

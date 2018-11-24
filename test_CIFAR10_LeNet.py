@@ -18,11 +18,14 @@ from dataset.existdata import exist_datasets, data_transform
 from torch.utils.data import DataLoader
 from utils.trainer import Trainer
 from model.lenet import LeNet5
+import sys
 
 # 1. 数据
 num_classes = 10
-#data_root = '/Users/suliang/MyDatasets/CIFAR10'
-data_root = '/home/ubuntu/MyDatasets/CIFAR10'
+if sys.platform == 'linux':    # for ubuntu
+    data_root = '/home/ubuntu/MyDatasets/CIFAR10'     # for ubuntu 
+else:                          # for Mac os
+    data_root = '/Users/suliang/MyDatasets/CIFAR10'  # for mac os
 transform = data_transform(train=True, input_size = 32, mean = [0.5,0.5,0.5], std = [0.5,0.5,0.5])
 trainset = exist_datasets('cifar10', root=data_root, train=True, transform =transform, download=False)
 trainloader = DataLoader(trainset, batch_size=4, shuffle=True, num_workers=2)

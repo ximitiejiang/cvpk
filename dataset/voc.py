@@ -1,64 +1,16 @@
-"""
-2018/11/22 新增transform在voc dataset中，统一由dataset内部进行transform
-"""
 
+from skimage import transform as sktsf
+from torchvision import transforms as tvtsf
+from utils import img_bbox
+import numpy as np
 import os
 import xml.etree.ElementTree as ET
-import numpy as np
 from PIL import Image
-from torchvision import transforms
 import torch
+"""VOC数据源核心接口类为VOCTrainDataset和VOCTestDataset
+VOCBboxDataset为数据源类。
+"""
 
-def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]):
-    '''数据变换：如果要使用dataloader，就必须使用transform
-    因为dataset为img格式，而dataloader只认tensor，所以在dataloader之前需要定义transform
-    把img转换为tensor。这一步一般放在dataset步完成。
-    同时还可以在transform中定义一些数据增强。
-    
-    '''
-    
-    if train:
-        transform = transforms.Compose([transforms.RandomResizedCrop(input_size),
-                                        transforms.RandomHorizontalFlip(),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize(mean,std)
-                                       ])
-        
-    else:
-        transform = transforms.Compose([transforms.Resize(input_size),
-                                        transforms.CenterCrop(input_size),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize(mean,std)
-                                       ])
-    return transform
-    
-
-def read_image(path, dtype=np.float32, color=True):
-    """ 读取图片文件：color如果是True则返回3通道图片，color如果False则返回灰度图
-    """
-    f = Image.open(path)        # (W, H)
-    # step1: 字节形式[w,h]转向量形式[c,h,w]    
-    # step2: 转置
-    
-    try:
-        if color:                       # f.mode可以看到本来就是RGB模式，所以convert没有影响
-            img = f.convert('RGB')      # f(W, H) -> img(W,H) 
-        else:
-            img = f.convert('P')
-        img = np.asarray(img, dtype=dtype)  # (W,H) - >(H,W,C)
-    finally:
-        if hasattr(f, 'close'):
-            f.close()
-            
-""" img to array: np.asarray(img)
-    array to img: Image.fromarray(np.uint8(img))
-    考虑修改read_imge()，只做打开，把数据转换单独写成transform
-"""            
-
-    if img.ndim == 2:
-        img = img[np.newaxis]  # reshape (H, W) -> (1, H, W)
-    else:
-        img = img.transpose((2, 0, 1))  # (H, W, C) -> (C, H, W)
 
 
 class VOCBboxDataset:
@@ -81,8 +33,6 @@ class VOCBboxDataset:
         在read_image()做了一点：包括字节转向量和转置，使用之前还需要做(0,1)化和规范化
         
     '''
-
-
     def __init__(self, data_dir, split='trainval',
                  use_difficult=False, return_difficult=False):
 
@@ -136,13 +86,9 @@ class VOCBboxDataset:
         img_file = os.path.join(self.data_dir, 'JPEGImages', id_ + '.jpg')
         
         img = Image.open(img_file)   # img为二进制图片
-        data = data_transform(train=True, input_size = 224, mean)(img)
-#        img = read_image(img_file, color=True)  # ??? 读出来类型就变成NoneType了
+
+        data = img_bbox.read_image(img_file, color=True)  # 
         
-        # TODO: add transform here
-        
-        # if self.return_difficult:
-        #     return img, bbox, label, difficult
         return data, bbox, label, difficult
 
     __getitem__ = get_example
@@ -169,3 +115,111 @@ VOC_BBOX_LABEL_NAMES = (
     'sofa',
     'train',
     'tvmonitor')
+
+
+
+def pytorch_normalze(img):
+    """
+    https://github.com/pytorch/vision/issues/223
+    return appr -1~1 RGB
+    """
+    normalize = tvtsf.Normalize(mean=[0.485, 0.456, 0.406],
+                                std=[0.229, 0.224, 0.225])
+    img = normalize(torch.from_numpy(img))
+    return img.numpy()
+
+
+def preprocess(img, min_size=600, max_size=1000):
+    """Preprocess an image for feature extraction.
+
+    The length of the shorter edge is scaled to :obj:`self.min_size`.
+    After the scaling, if the length of the longer edge is longer than
+    :param min_size:
+    :obj:`self.max_size`, the image is scaled to fit the longer edge
+    to :obj:`self.max_size`.
+
+    After resizing the image, the image is subtracted by a mean image value
+    :obj:`self.mean`.
+
+    Args:
+        img (~numpy.ndarray): An image. This is in CHW and RGB format.
+            The range of its value is :math:`[0, 255]`.
+
+    Returns:
+        ~numpy.ndarray: A preprocessed image.
+
+    """
+    C, H, W = img.shape
+    scale1 = min_size / min(H, W)
+    scale2 = max_size / max(H, W)
+    scale = min(scale1, scale2)   # 用小比例缩放图片，确保图片缩放到框定的HxW(1000x600)之内
+    img = img / 255.              # 对象素值做0-1化处理
+    img = sktsf.resize(img, (C, H * scale, W * scale), mode='reflect',anti_aliasing=False)  # 具体的缩放步骤
+    # both the longer and shorter should be less than
+    # max_size and min_size
+
+    normalize = pytorch_normalze
+    return normalize(img)         # 对像素值做规范化处理
+
+
+class Transform(object):
+
+    def __init__(self, min_size=600, max_size=1000):
+        self.min_size = min_size
+        self.max_size = max_size
+
+    def __call__(self, in_data):
+        
+        img, bbox, label = in_data
+        _, H, W = img.shape
+        img = preprocess(img, self.min_size, self.max_size)
+        _, o_H, o_W = img.shape
+        scale = o_H / H
+        bbox = img_bbox.resize_bbox(bbox, (H, W), (o_H, o_W))
+
+        # horizontally flip
+        img, params = img_bbox.random_flip(
+            img, x_random=True, return_param=True)
+        bbox = img_bbox.flip_bbox(
+            bbox, (o_H, o_W), x_flip=params['x_flip'])
+
+        return img, bbox, label, scale
+
+
+class VOCTrainDataset:
+    """trainset包含transform
+    """
+    def __init__(self, root, split='trainval', use_difficult=False):
+        self.db = VOCBboxDataset(root)
+        self.tsf = Transform(min_size=600, max_size=1000)
+
+    def __getitem__(self, idx):
+        ori_img, bbox, label, difficult = self.db.get_example(idx)
+
+        img, bbox, label, scale = self.tsf((ori_img, bbox, label))
+        # TODO: check whose stride is negative to fix this instead copy all
+        # some of the strides of a given numpy array are negative.
+        return img.copy(), bbox.copy(), label.copy(), scale
+
+    def __len__(self):
+        return len(self.db)
+
+
+class VOCTestDataset:
+    """testset不包含transform
+    """
+    def __init__(self, root, split='test', use_difficult=True):
+        self.db = VOCBboxDataset(root, split=split, use_difficult=use_difficult)
+
+    def __getitem__(self, idx):
+        ori_img, bbox, label, difficult = self.db.get_example(idx)
+        img = preprocess(ori_img)
+        return img, ori_img.shape[1:], bbox, label, difficult
+
+    def __len__(self):
+        return len(self.db)
+
+if __name__ == '__main__':
+    data_root = '/home/ubuntu/MyDatasets/VOCdevkit/VOC2007'
+    trainset = VOCTrainDataset(root=data_root)
+    
