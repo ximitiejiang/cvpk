@@ -35,7 +35,7 @@ def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], s
     return transform
 
 
-def exist_datasets(name, root, train=True, transform =None, download=False):
+def exist_datasets(name, root, annFile = None, train=True, transform =None, download=False):
     '''用于创建数据对象：具备__getitem__，__len__的类的实例称为数据对象
     输入：
         name: 'MNIST', 'CIFAR10', 'FashionMNIST', 'CocoCaptions', 'CocoDetection'
@@ -68,11 +68,16 @@ def exist_datasets(name, root, train=True, transform =None, download=False):
             datas = datasets.CIFAR10(root=root, train=train, transform=transform, download=download)
             classes = ['plane','car','bird','cat','deer','dog','frog','horse','ship','truck']
             
-        elif name == 'cococaptions':
+        elif name == 'cocodetection':
+            '''coco detection是微软出的物体检测数据集,使用pytorch的dataset需要先安装coco api
+                
+            '''
+            datas = datasets.CocoDetection(root=root, annFile=annFile, transform=None, target_transform=None)
+            
+            
+        elif name == 'cococaption':
             datas = datasets.CocoCaptions(root=root, train=train, transform=transform, download=download)
             
-        elif name == 'cococaptions':
-            datas = datasets.CocoCaptions(root=root, train=train, transform=transform, download=download)
         else:
             raise ValueError('not recognized data source!')
             
@@ -90,26 +95,36 @@ def exist_datasets(name, root, train=True, transform =None, download=False):
 
 
 if __name__ == '__main__':
+    test_id =0
     
-#    root = '/home/ubuntu/MyDatasets/MNIST'
-    root = '/Users/suliang/MyDatasets/MNIST'
-    transform_train = data_transform(train=True, input_size=32)
-    transform_test = data_transform(train =False, input_size=32)
+    if test_id == 0:
+        root = '/media/ubuntu/4430C54630C53FA2/SuLiang/MyDatasets/coco'
+        dataType='train2017'
+        annFile='{}/annotations/instances_{}.json'.format(root,dataType)
+        datas = exist_datasets(name='cocodetection',root=root, annFile=annFile)
+        print('finished!')
+        img, label = datas[0]
     
-    # 1. 创建数据对象
-    trainset = exist_datasets(name='MNIST', train=True, root=root, transform = transform_train)
-    testset = exist_datasets(name='MNIST', train=False, root=root, transform = transform_test)
-    
-    img, label = trainset[0]         
-    print(label)
-    
-    
-    # 2. 做数据加载
-    # dataloader很好用，dataset作为数据源可以给出array或者tensor，dataloader都可以转化为tensor输出
-    # 但dataloader中的dataset不能给出img的二进制格式否则报错，至少先转换为array或tensor
-    # dataloader的输出： dataloder本质是一个迭代对象，可直接用for，输出等效于一次切片。
-    trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=2)
-    testloader = DataLoader(testset, batch_size=1, shuffle=True, num_workers=2)
-    
-    imgs, labels = next(iter(trainloader))  # dataloader的数据格式
+    elif test_id == 1:
+    #    root = '/home/ubuntu/MyDatasets/MNIST'
+        root = '/Users/suliang/MyDatasets/MNIST'
+        transform_train = data_transform(train=True, input_size=32)
+        transform_test = data_transform(train =False, input_size=32)
+        
+        # 1. 创建数据对象
+        trainset = exist_datasets(name='MNIST', train=True, root=root, transform = transform_train)
+        testset = exist_datasets(name='MNIST', train=False, root=root, transform = transform_test)
+        
+        img, label = trainset[0]         
+        print(label)
+        
+        
+        # 2. 做数据加载
+        # dataloader很好用，dataset作为数据源可以给出array或者tensor，dataloader都可以转化为tensor输出
+        # 但dataloader中的dataset不能给出img的二进制格式否则报错，至少先转换为array或tensor
+        # dataloader的输出： dataloder本质是一个迭代对象，可直接用for，输出等效于一次切片。
+        trainloader = DataLoader(trainset, batch_size=1, shuffle=True, num_workers=2)
+        testloader = DataLoader(testset, batch_size=1, shuffle=True, num_workers=2)
+        
+        imgs, labels = next(iter(trainloader))  # dataloader的数据格式
     
