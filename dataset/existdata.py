@@ -103,7 +103,7 @@ if __name__ == '__main__':
         annFile='{}/annotations/instances_{}.json'.format(root,dataType)
         datas = exist_datasets(name='cocodetection',root=root, annFile=annFile)
         print('finished!')
-        img, label = datas[0]
+        img, label = datas[0]  # 此处错误待debug，似乎传进去img的目标地址少了一个train2017
     
     elif test_id == 1:
     #    root = '/home/ubuntu/MyDatasets/MNIST'
