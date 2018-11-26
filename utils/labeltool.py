@@ -12,6 +12,10 @@ https://www.cnblogs.com/qw12/p/6185126.html
 代码预留，可用于GUI设计/tkinter模块的学习实例，但还没有调试通过。
 TODO： debug
 
+tkinter的基础整理，临时放在这
+1. 在v3.0之前为Tkinter，v3.0开始改为tkinter
+
+
 """
 
 from __future__ import division
