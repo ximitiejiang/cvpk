@@ -15,7 +15,7 @@ TODO： debug
 """
 
 from __future__ import division
-from Tkinter import *
+from tkinter import *
 import tkMessageBox
 from PIL import Image, ImageTk
 import os
@@ -280,7 +280,8 @@ class LabelTool():
     def mouseClick(self, event):
         if self.STATE['click'] == 0:
             self.STATE['x'], self.STATE['y'] = event.x, event.y
-        else:            x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
+        else:            
+            x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
             y1, y2 = min(self.STATE['y'], event.y), max(self.STATE['y'], event.y)
 
             x1, x2 = x1 / DEST_SIZE[0], x2 / DEST_SIZE[0];
