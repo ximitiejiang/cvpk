@@ -6,7 +6,6 @@ Created on Tue Nov 13 20:37:24 2018
 @author: ubuntu
 
 尝试在slcv框架里搭建faster rcnn, 仿造simple-faster-rcnn(by chenyun)
-
 """
 
 from dataset.voc import VOCTrainDataset
