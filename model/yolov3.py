@@ -258,7 +258,7 @@ def parse_model_config(path):
 class Darknet(nn.Module):
     """YOLOv3 object detection model
     输入：config_path
-              * 调用module_defs = parse_model_config(config_path)  
+ 
          img_size
     """
 

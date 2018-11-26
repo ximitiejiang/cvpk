@@ -67,8 +67,8 @@ def generate_anchor_base(base_size=16, ratios=[0.5, 1, 2],
             anchor_base[index, 3] = px + w / 2.
     return anchor_base
 
-from model.utils.bbox_tools import bbox2loc, bbox_iou, loc2bbox
-from model.utils.nms import non_maximum_suppression
+from utils.bbox_tools import bbox2loc, bbox_iou, loc2bbox
+from utils.non_maximum_suppression import non_maximum_suppression
 
 class ProposalTargetCreator(object):
     """Assign ground truth bounding boxes to given RoIs.
@@ -425,3 +425,8 @@ def normal_init(m, mean, stddev, truncated=False):
     else:
         m.weight.data.normal_(mean, stddev)
         m.bias.data.zero_()
+
+    
+    
+    
+    
