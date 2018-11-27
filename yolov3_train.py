@@ -17,15 +17,15 @@ Created on Mon Nov 26 10:10:30 2018
     (3)采用相对路径进行包与模块的导入。
 
 """
+import torch
 from model.yolov3 import Darknet
 from utils.init import weights_init_normal
 import os
-import torch
 from torchvision import transforms
 
 from dataset.coco import CocoDetection
 from torch.utils.data import DataLoader
-from utils.trainer import Trainer
+from utils.trainer_yolov3 import Trainer
 
 # ---------1. data----------------
 dataDir='/media/ubuntu/4430C54630C53FA2/SuLiang/MyDatasets/coco'
@@ -69,5 +69,7 @@ for i in range(num_epoch):
     trainer.epoch_show()
         
         
-
+optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
+# lambda x,y,z: x+y+z
+# filter(func, iterable) 
 

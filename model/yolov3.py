@@ -380,3 +380,8 @@ class Darknet(nn.Module):
                 conv_layer.weight.data.cpu().numpy().tofile(fp)
 
         fp.close()
+
+if __name__ =='__main__':
+    config_path = 'yolov3.cfg'
+    model = Darknet(config_path, img_size=416)
+    print(model)
