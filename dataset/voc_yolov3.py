@@ -18,7 +18,7 @@ import numpy as np
 
 import torch
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import torchvision.transforms as transforms
 
@@ -26,6 +26,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 from skimage.transform import resize
+from skimage import io, color
+from xmltodict import parse as parse_xml
 
 import sys
 # 检查python版本号，如果是py2则导入的是cElementTree, py3则导入ElementTree
@@ -33,6 +35,12 @@ if sys.version_info[0] == 2:
     import xml.etree.cElementTree as ET
 else:
     import xml.etree.ElementTree as ET
+
+voc_classes = [
+    'aeroplane', 'bicycle', 'bird', 'boat', 'bottle',
+    'bus', 'car', 'cat', 'chair', 'cow',
+    'diningtable', 'dog', 'horse', 'motorbike', 'person',
+    'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 
 class ListDataset(Dataset):
     """专门针对coco2014数据集
@@ -142,7 +150,6 @@ class VOCDetection(Dataset):
     def __getitem__(self, index):
         # 对数据集进行切片
         img_id = self.ids[index]
-        # xml格式文件的操作调用ET.parse(addr).getroot()得到的root为？？？
         img = np.array(Image.open(self._imgpath % img_id).convert('RGB'))
         #print(self._imgpath % img_id)
         
@@ -161,30 +168,17 @@ class VOCDetection(Dataset):
         # As pytorch tensor
         input_img = torch.from_numpy(input_img).float()
         
-        # 这部分有问题，xml格式没法做transform
-#        target = ET.parse(self._annopath % img_id).getroot()
-#        
-#        if self.target_transform is not None:
-#            target = self.target_transform(target)
-#            
-#        labels = None
+        """ 这部分有问题，xml格式没法做transform
+        target = ET.parse(self._annopath % img_id).getroot()
         
-        # 如果target存在,先转换为array,shape为(8,)
-        from xmltodict import parse as parse_xml
-        if os.path.exists(self._annopath % img_id):
-            annotation = parse_xml(open(label_path).read())['annotation']
-            objs = annotation.get('object', [])
-            objs = objs if isinstance(objs, list) else [objs]
-            labels = [
-                [self.classes.index(o["name"]),
-                 float(o["bndbox"]["xmin"]), float(o["bndbox"]["ymin"]),
-                 float(o["bndbox"]["xmax"]), float(o["bndbox"]["ymax"])] for o in objs
-            ]
-
-            labels = np.array(labels)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+            
+        labels = None
+        """
 
         if len(target) > 0:
-            target = np.array(target).reshape(-1,1)
+            target = np.array(target)
             x1 = target[:,1]
             y1 = target[:,2]
             x2 = target[:,3]
@@ -227,12 +221,20 @@ class VOCDetection(Dataset):
     
 class VOCDataset(Dataset):
     """参考voc dataset： https://github.com/jinyu121/PyTorchYOLOv2/blob/master/datasets.py
+    参数：
+        base_path  数据集默认根目录地址
+        dataset_name  数据集名字，可选'VOC2007', 'VOC2012'
+        dataset_type  数据集类型，可选'train', 'trainval', 'test'
+    
+    img已做: 转tensor，(0,1)化，
+    TODO: normalization
     """
-    def __init__(self, base_path, list_name, classes, img_size=416, img_ext=".jpg"):
+    def __init__(self, base_path, dataset_name, dataset_type, classes, img_size=416, img_ext=".jpg"):
 
-        self.files = [x.strip() for x in open(os.path.join(base_path, "ImageSets", "Main", list_name + ".txt"), 'r')]
-        self.files = [(os.path.join(base_path, "JPEGImages", filename + img_ext),
-                       os.path.join(base_path, "Annotations", filename + ".xml")) for filename in self.files]
+        self.files = [x.strip() for x in open(os.path.join(base_path, dataset_name, 
+                      "ImageSets", "Main", dataset_type + ".txt"), 'r')]
+        self.files = [(os.path.join(base_path, dataset_name,"JPEGImages", filename + img_ext),
+                       os.path.join(base_path, dataset_name,"Annotations", filename + ".xml")) for filename in self.files]
         self.classes = classes
         self.img_shape = (img_size, img_size)
         self.max_objects = 50
@@ -242,8 +244,8 @@ class VOCDataset(Dataset):
         # ---------
         #  Image
         # ---------
-
-        img_path = self.files[index][0]
+        
+        img_path = self.files[index][0] # img_path为list含2501个tuple，一个tuple含2个地址元素
         img = io.imread(img_path)
 
         if len(img.shape) > 3:
@@ -275,23 +277,28 @@ class VOCDataset(Dataset):
 
         labels = []
         if os.path.exists(label_path):
-            annotation = parse_xml(open(label_path).read())['annotation']
-            objs = annotation.get('object', [])
+            annotation = parse_xml(open(label_path).read())['annotation'] # 提取tag<annotation>下数据为ordereddict形式
+            objs = annotation.get('object', [])  # 提取各ordereddict
             objs = objs if isinstance(objs, list) else [objs]
+            
             labels = [
                 [self.classes.index(o["name"]),
                  float(o["bndbox"]["xmin"]), float(o["bndbox"]["ymin"]),
                  float(o["bndbox"]["xmax"]), float(o["bndbox"]["ymax"])] for o in objs
             ]
 
-            labels = np.array(labels)
-
+            labels = np.array(labels) 
+            
+            """此处对坐标进行padding的原因未知
+            """
             # Extract coordinates for unpadded + unscaled image, and adjust for added padding
             x1 = labels[:, 1] + pad[1][0]
             y1 = labels[:, 2] + pad[0][0]
             x2 = labels[:, 3] + pad[1][0]
             y2 = labels[:, 4] + pad[0][0]
-
+            
+            """对数据基于padding进行变换
+            """
             # Calculate ratios from coordinates
             labels[:, 1] = ((x1 + x2) / 2) / padded_w
             labels[:, 2] = ((y1 + y2) / 2) / padded_h
@@ -306,7 +313,7 @@ class VOCDataset(Dataset):
             filled_labels = labels[:self.max_objects]
         filled_labels = torch.from_numpy(filled_labels)
 
-        return img_path, input_img, filled_labels
+        return input_img, filled_labels
 
     def __len__(self):
         return len(self.files)
@@ -351,11 +358,19 @@ if __name__ == '__main__':
     
     test_id = 1
     
-    if test_id == 1:
+    if test_id == 1:  # 1已经调通
         root = '/home/ubuntu/MyDatasets/voc/VOCdevkit'
-        trainset = VOCDetection(root=root, image_set='train', transform=None, img_size = 416)
+        trainset = VOCDataset(base_path=root, dataset_name='VOC2007',dataset_type='train', 
+                              classes=voc_classes, img_size=416, img_ext=".jpg")
         input_img, filled_labels = trainset[1]
+        
+        dataloader = DataLoader(trainset, batch_size=16, shuffle=False, num_workers=1)
+        imgs, labels = next(iter(dataloader))
     
-    elif test_id == 2:
+    elif test_id == 2: # 2还没有调通
         root = '/home/ubuntu/MyDatasets/voc/VOCdevkit'
+        trainset = VOCDetection(root=root, image_set='train', transform=None, 
+                                img_size = 416)
+        input_img, filled_labels = trainset[1]
+
         

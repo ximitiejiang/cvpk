@@ -77,8 +77,15 @@ class Trainer(nn.Module):
     def __init__(self, model,num_classes):
         super().__init__()
         self.model = model
-        self.criterion = define_criterion('cross_entropy')
-        self.optimizer = define_optimizer('adam', self.model.parameters())
+        self.num_classes = num_classes
+        # yolo不需要模块化loss,而是在model forward中自定义了loss
+#        self.criterion = define_criterion('cross_entropy')
+        
+        # yolo的优化器采用Adam：部分requires_grad冻结
+        # lambda x,y,z: x+y+z
+        # filter(func, iterable), 例如filter(lambda x: x, [-1, 0, 1]) 返回[-1,1],
+        # 但需要print(list(filter object))才能显示
+        self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
         
 #        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 #        if torch.cuda.device_count() > 1:
@@ -121,7 +128,6 @@ class Trainer(nn.Module):
         '''
         pass
 
-   
     def step(self, j, imgs, labels):  # 5步核心循环   
         '''每个batch_size循环运行
         输入：为内层for循环的3个循环变量
@@ -134,20 +140,25 @@ class Trainer(nn.Module):
             labels = labels.cuda()
 
         self.optimizer.zero_grad()               # (1)
-        outputs = self.model(imgs)               # (2)  outputs: n_batch_size x n_classes
+#        outputs = self.model(imgs)               # (2)  outputs: n_batch_size x n_classes
                                                  #      labels: 1 x n_batch_size
-        loss = self.criterion(outputs, labels)   # (3)  1 x n_classes
+#        loss = self.criterion(outputs, labels)   # (3)  1 x n_classes
         
+        # yolo生成的loss是一个标量，为多个loss的sum(output_list)
+        loss = self.model(imgs, labels)
+    
         self._loss_output(j,loss)
         
         loss.backward()                          # (4)
         
+        # 这句需要改，因为不是model的所有参数都要计算梯度
         self._grads_output(j)                  
         
         self.optimizer.step()                    # (5)
                         
-#        self.vis.add_batch_data(loss,outputs,labels)
         self.vis.batch_update(loss, outputs, labels)
+        
+        return loss
         
     
     def epoch_show(self, epoch_num):

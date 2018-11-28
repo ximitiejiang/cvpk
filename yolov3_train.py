@@ -23,28 +23,19 @@ from utils.init import weights_init_normal
 import os
 from torchvision import transforms
 
-from dataset.coco import CocoDetection
+from dataset.voc_yolov3 import VOCDataset, voc_classes
 from torch.utils.data import DataLoader
 from utils.trainer_yolov3 import Trainer
 
 # ---------1. data----------------
-dataDir='/media/ubuntu/4430C54630C53FA2/SuLiang/MyDatasets/coco'
-dataType='train2017'  # 也可定义成'val2017'
-    
-root = os.path.join(dataDir, dataType)
-annFile='{}/annotations/instances_{}.json'.format(dataDir,dataType)
+root = '/home/ubuntu/MyDatasets/voc/VOCdevkit'
+trainset = VOCDataset(base_path=root, dataset_name='VOC2007',dataset_type='train', 
+                      classes=voc_classes, img_size=416, img_ext=".jpg")
+input_img, filled_labels = trainset[5]
 
-# darknet模型要求的图片输入尺寸为416
-# 这里增加的transform包含了尺寸（确认是416），totensor（pytorch要求），
-# 归一化（github上看到有人实现时加了这个，参考：
-# https://github.com/BinWang-shu/yolo_v3_pytorch/blob/master/train.py）
-transform = transforms.Compose([transforms.Resize(416),
-                                transforms.ToTensor(),
-                                transforms.Normalization(mean = [0.485, 0.456, 0.406], 
-                                                         std = [0.229, 0.224, 0.225])
-                                ])
-trainset = CocoDetection(root, annFile, transform=transform)
 dataloader = DataLoader(trainset, batch_size=16, shuffle=False, num_workers=1)
+
+imgs, labels = next(iter(dataloader))
 
 # --------2. model----------------
 # darknet比较大，总共106个sequential
@@ -58,18 +49,39 @@ model.apply(weights_init_normal)
 # 待验证weight init的效果
 
 # --------3. training----------------
-trainer = Trainer()
-num_epoch = 1
+trainer = Trainer(model, 20)
+num_epoch = 1  # 源码用了30
 for i in range(num_epoch):
     
     for j,(imgs, labels) in enumerate(dataloader):
         
-        trainer.step()
-        
-    trainer.epoch_show()
+        loss = trainer.step(j, imgs, labels)
         
         
-optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
-# lambda x,y,z: x+y+z
-# filter(func, iterable) 
+        print("[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, recall: %.5f, precision: %.5f]"
+              % (i+1,
+                 num_epoch,
+                 j+1,
+                 len(dataloader),
+                 model.losses["x"],
+                 model.losses["y"],
+                 model.losses["w"],
+                 model.losses["h"],
+                 model.losses["conf"],
+                 model.losses["cls"],
+                 # loss计算出来如果是一个标量，则不能进行.item(),除非是一个单值tensor
+                 loss.item(),
+                 model.losses["recall"],
+                 model.losses["precision"],
+                 )
+              )
+        model.seen += imgs.size(0)
+    
+    trainer.epoch_show(i)
+    
+    checkpoint_dir = '/checkpoints'
+    checkpoint_interval = 10
+    if i % checkpoint_interval == 0:
+        model.save_weights("%s/%d.weights" % (checkpoint_dir, i))    
+
 

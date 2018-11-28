@@ -16,12 +16,115 @@ import numpy as np
 from PIL import Image
 
 #from utils.parse_config import *
-#from utils.utils import build_targets
+
 from collections import defaultdict
 #
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import math
 
+
+def bbox_iou(box1, box2, x1y1x2y2=True):
+    """
+    Returns the IoU of two bounding boxes
+    """
+    if not x1y1x2y2:
+        # Transform from center and width to exact coordinates
+        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
+        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
+        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
+        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
+    else:
+        # Get the coordinates of bounding boxes
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
+
+    # get the corrdinates of the intersection rectangle
+    inter_rect_x1 = torch.max(b1_x1, b2_x1)
+    inter_rect_y1 = torch.max(b1_y1, b2_y1)
+    inter_rect_x2 = torch.min(b1_x2, b2_x2)
+    inter_rect_y2 = torch.min(b1_y2, b2_y2)
+    # Intersection area
+    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(
+        inter_rect_y2 - inter_rect_y1 + 1, min=0
+    )
+    # Union Area
+    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
+    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
+
+    iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
+
+    return iou
+
+def build_targets(
+    pred_boxes, pred_conf, pred_cls, target, anchors, num_anchors, num_classes, grid_size, ignore_thres, img_dim):
+    nB = target.size(0)
+    nA = num_anchors
+    nC = num_classes
+    nG = grid_size
+    mask = torch.zeros(nB, nA, nG, nG)
+    conf_mask = torch.ones(nB, nA, nG, nG)
+    tx = torch.zeros(nB, nA, nG, nG)
+    ty = torch.zeros(nB, nA, nG, nG)
+    tw = torch.zeros(nB, nA, nG, nG)
+    th = torch.zeros(nB, nA, nG, nG)
+    tconf = torch.ByteTensor(nB, nA, nG, nG).fill_(0)
+    tcls = torch.ByteTensor(nB, nA, nG, nG, nC).fill_(0)
+
+    nGT = 0
+    nCorrect = 0
+    for b in range(nB):
+        for t in range(target.shape[1]):
+            if target[b, t].sum() == 0:
+                continue
+            nGT += 1
+            # Convert to position relative to box
+            gx = target[b, t, 1] * nG
+            gy = target[b, t, 2] * nG
+            gw = target[b, t, 3] * nG
+            gh = target[b, t, 4] * nG
+            # Get grid box indices
+            gi = int(gx)
+            gj = int(gy)
+            # Get shape of gt box
+            gt_box = torch.FloatTensor(np.array([0, 0, gw, gh])).unsqueeze(0)
+            # Get shape of anchor box
+            anchor_shapes = torch.FloatTensor(np.concatenate((np.zeros((len(anchors), 2)), np.array(anchors)), 1))
+            # Calculate iou between gt and anchor shapes
+            
+            """子程序bbox_iou()用于
+            """
+            anch_ious = bbox_iou(gt_box, anchor_shapes)
+            # Where the overlap is larger than threshold set mask to zero (ignore)
+            conf_mask[b, anch_ious > ignore_thres, gj, gi] = 0
+            # Find the best matching anchor box
+            best_n = np.argmax(anch_ious)
+            # Get ground truth box
+            gt_box = torch.FloatTensor(np.array([gx, gy, gw, gh])).unsqueeze(0)
+            # Get the best prediction
+            pred_box = pred_boxes[b, best_n, gj, gi].unsqueeze(0)
+            # Masks
+            mask[b, best_n, gj, gi] = 1
+            conf_mask[b, best_n, gj, gi] = 1
+            # Coordinates
+            tx[b, best_n, gj, gi] = gx - gi
+            ty[b, best_n, gj, gi] = gy - gj
+            # Width and height
+            tw[b, best_n, gj, gi] = math.log(gw / anchors[best_n][0] + 1e-16)
+            th[b, best_n, gj, gi] = math.log(gh / anchors[best_n][1] + 1e-16)
+            # One-hot encoding of label
+            target_label = int(target[b, t, 0])
+            tcls[b, best_n, gj, gi, target_label] = 1
+            tconf[b, best_n, gj, gi] = 1
+
+            # Calculate iou between ground truth and best matching prediction
+            iou = bbox_iou(gt_box, pred_box, x1y1x2y2=False)
+            pred_label = torch.argmax(pred_cls[b, best_n, gj, gi])
+            score = pred_conf[b, best_n, gj, gi]
+            if iou > 0.5 and pred_label == target_label and score > 0.5:
+                nCorrect += 1
+
+    return nGT, nCorrect, mask, conf_mask, tx, ty, tw, th, tconf, tcls
 
 def create_modules(module_defs):
     """
@@ -235,7 +338,9 @@ class YOLOLayer(nn.Module):
 
 
 def parse_model_config(path):
-    """Parses the yolo-v3 layer configuration file and returns module definitions"""
+    """ 解析模型配置文件生成模型定义
+    Parses the yolo-v3 layer configuration file and returns module definitions
+    """
     file = open(path, 'r')
     lines = file.read().split('\n')
     lines = [x for x in lines if x and not x.startswith('#')]
@@ -264,27 +369,33 @@ class Darknet(nn.Module):
 
     def __init__(self, config_path, img_size=416):
         super(Darknet, self).__init__()
-        self.module_defs = parse_model_config(config_path)
-        self.hyperparams, self.module_list = create_modules(self.module_defs)
+        self.module_defs = parse_model_config(config_path)  # 生成模型定义
+        self.hyperparams, self.module_list = create_modules(self.module_defs) # 生成模型和超参数
         self.img_size = img_size
         self.seen = 0
         self.header_info = np.array([0, 0, 0, self.seen, 0])
-        self.loss_names = ["x", "y", "w", "h", "conf", "cls", "recall", "precision"]
+        self.loss_names = ["x", "y", "w", "h", "conf", "cls", "recall", "precision"] # 定义8个损失
 
     def forward(self, x, targets=None):
         is_training = targets is not None
         output = []
+        # 用defaultdict存储loss,这样在调用没有的键名的时不会报错。
         self.losses = defaultdict(float)
         layer_outputs = []
         for i, (module_def, module) in enumerate(zip(self.module_defs, self.module_list)):
+            # 卷积层/上采样/最大池化的输出计算
             if module_def["type"] in ["convolutional", "upsample", "maxpool"]:
                 x = module(x)
+            # route层的输出计算
             elif module_def["type"] == "route":
                 layer_i = [int(x) for x in module_def["layers"].split(",")]
                 x = torch.cat([layer_outputs[i] for i in layer_i], 1)
+            # 短路层的输出计算
             elif module_def["type"] == "shortcut":
                 layer_i = int(module_def["from"])
                 x = layer_outputs[-1] + layer_outputs[layer_i]
+            # yolo层的输出计算
+            # yolo训练时：
             elif module_def["type"] == "yolo":
                 # Train phase: get loss
                 if is_training:
