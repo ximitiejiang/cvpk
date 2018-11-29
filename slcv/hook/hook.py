@@ -69,7 +69,7 @@ class Hook(object):
         print('hello, this is father hook!')
 
 
-class Timer(Hook):
+class Test(Hook):
     import time
     def test_hook(self):
         print('hello, this is son hook!')
@@ -82,7 +82,7 @@ if __name__ == '__main__':
             getattr(hook, fn_name)()
             
     hook1 = Hook()
-    hook2 = Timer()  # 由于是继承了Hook，所以test_hook()方法也被继承下来了。
+    hook2 = Test()  # 由于是继承了Hook，所以test_hook()方法也被继承下来了。
     
     _hooks = [hook1, hook2]
     call_hook('test_hook', _hooks=_hooks)
