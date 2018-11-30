@@ -5,10 +5,11 @@ Created on Tue Nov 13 17:25:06 2018
 
 @author: ubuntu
 """
-from dataset import voc
-from utils.image_tensor import tensor2img, imgshow
+from slcv.dataset import voc
+from slcv.dataset.voc import VOCBboxDataset
+from slcv.utils.image_tensor import tensor2img, imgshow
 import matplotlib.pyplot as plt
-from model.vgg import vgg16 
+from slcv.model.vgg import vgg16 
 
 voc_dir = '/home/ubuntu/MyDatasets/VOCdevkit/VOC2007'
 dataset = voc.VOCBboxDataset(voc_dir,split='trainval')

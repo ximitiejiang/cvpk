@@ -1,5 +1,12 @@
 # slcv
 this is a mimic to mmcv and integrate cv DL detection algorithmns in pytorch.
 
-before run you need run below on command line to start the visdom server:
+### before run you need: 
+1. start the visdom server on command line
 python3 -m visdom.server
+
+2. add repo dictory to sys.path
+run requirements.py
+
+### TODO
+prepare install version release

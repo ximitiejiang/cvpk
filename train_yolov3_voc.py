@@ -17,15 +17,15 @@ Created on Mon Nov 26 10:10:30 2018
     (3)采用相对路径进行包与模块的导入。
 
 """
-import torch
-from model.yolov3 import Darknet
-from utils.init import weights_init_normal
+
+from slcv.model.yolov3 import Darknet
+from slcv.utils.init import weights_init_normal
 import os
 from torchvision import transforms
 
-from dataset.voc_yolov3 import VOCDataset, voc_classes
+from slcv.dataset.voc_yolov3 import VOCDataset, voc_classes
 from torch.utils.data import DataLoader
-from utils.trainer_yolov3 import Trainer
+from slcv.runner.trainer_yolov3 import Trainer
 
 # ---------1. data----------------
 root = '/home/ubuntu/MyDatasets/voc/VOCdevkit'

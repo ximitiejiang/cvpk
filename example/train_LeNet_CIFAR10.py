@@ -14,10 +14,10 @@ debug记录：
     * 
 
 """
-from dataset.existdata import exist_datasets, data_transform
+from slcv.dataset.existdata import exist_datasets, data_transform
 from torch.utils.data import DataLoader
 from utils.trainer import Trainer
-from model.lenet import LeNet5
+from slcv.model.lenet import LeNet5
 import sys
 
 # 1. 数据
