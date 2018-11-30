@@ -16,7 +16,7 @@ debug记录：
 """
 from slcv.dataset.existdata import exist_datasets, data_transform
 from torch.utils.data import DataLoader
-from utils.trainer import Trainer
+from slcv.runner.trainer import Trainer
 from slcv.model.lenet import LeNet5
 import sys
 

@@ -15,7 +15,7 @@ import torch
 from torch import nn, optim
 import os
 import time
-from .visulization import Visulization
+from slcv.visualization.visualization import Visualization
 
 def define_criterion(name):
     '''定义loss损失函数
@@ -86,7 +86,7 @@ class Trainer(nn.Module):
         if torch.cuda.is_available():
             self.model.cuda()
 
-        self.vis = Visulization(env='mynewvis')
+        self.vis = Visualization(env='mynewvis')
     
     
     def _grads_output(self,j):
