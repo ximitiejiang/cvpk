@@ -12,9 +12,11 @@ class Hook(object):
     """
 
     def before_run(self, runner):
+        """核心的3组hooks: before_run"""
         pass
 
     def after_run(self, runner):
+        """核心的3组hooks: before_run"""
         pass
 
     def before_epoch(self, runner):
@@ -30,27 +32,35 @@ class Hook(object):
         pass
 
     def before_train_epoch(self, runner):
+        """核心的3组hooks: before_run"""
         self.before_epoch(runner)
 
     def before_val_epoch(self, runner):
+        """核心的3组hooks: before_run"""
         self.before_epoch(runner)
 
     def after_train_epoch(self, runner):
+        """核心的3组hooks: before_run"""
         self.after_epoch(runner)
 
     def after_val_epoch(self, runner):
+        """核心的3组hooks: before_run"""
         self.after_epoch(runner)
 
     def before_train_iter(self, runner):
+        """核心的3组hooks: before_run"""
         self.before_iter(runner)
 
     def before_val_iter(self, runner):
+        """核心的3组hooks: before_run"""
         self.before_iter(runner)
 
     def after_train_iter(self, runner):
+        """核心的3组hooks: before_run"""
         self.after_iter(runner)
 
     def after_val_iter(self, runner):
+        """核心的3组hooks: before_run"""
         self.after_iter(runner)
 
     def every_n_epochs(self, runner, n):

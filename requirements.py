@@ -12,5 +12,7 @@ python3 -m visdom.server
 
 #-----step2-----------
 import sys, os
-parentpath = os.path.dirname(__file__)
-sys.path.insert(0, parentpath)
+rootpath = os.path.dirname(__file__)
+sys.path.insert(0, rootpath)
+
+print(sys.path)
