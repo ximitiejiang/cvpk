@@ -7,11 +7,10 @@ Created on Mon Dec  3 11:17:10 2018
 """
 
 from torch.nn.utils import clip_grad
-from hook import Hook
+from .hook import Hook
 
 class OptimizerHook(Hook):
-    """优化器hook，默认用于loss.backward()
-    输入：grad_clip, 为真则对梯度进行求均值
+    """优化器hook
     """
     def __init__(self, grad_clip=None):
         self.grad_clip = grad_clip
@@ -21,12 +20,12 @@ class OptimizerHook(Hook):
             filter(lambda p: p.requires_grad, params), **self.grad_clip)
 
     def after_train_iter(self, runner):
-        """每个循环结束：优化器清零，"""
-        runner.optimizer.zero_grad()
-        runner.loss.backward()
+        """每个循环结束：优化器清零，基于损失计算梯度(loss.backward)，基于梯度用优化器更新参数(optimizer step)，"""
+        runner.optimizer.zero_grad() # 清零上一个iter的梯度
+        runner.loss.backward()       # 计算梯度
         if self.grad_clip is not None:
             self.clip_grads(runner.model.parameters())
-        runner.optimizer.step()
+        runner.optimizer.step()      # 更新参数
 
 if __name__ == '__main__':
     h = OptimizerHook()

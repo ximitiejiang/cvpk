@@ -3,7 +3,7 @@
 """
 
 
-import os.path as osp
+import os
 import sys
 from collections import Iterable
 from importlib import import_module
@@ -57,12 +57,15 @@ class Config(object):
 
     @staticmethod
     def fromfile(filename):
-        filename = osp.abspath(osp.expanduser(filename))
+        """filename输入为想对于原始main文件的相对路径
+        """
+        filename = os.path.abspath(filename)
+        
         if filename.endswith('.py'):
-            module_name = osp.basename(filename)[:-3]
+            module_name = os.path.basename(filename)[:-3]
             if '.' in module_name:
                 raise ValueError('Dots are not allowed in config file path.')
-            config_dir = osp.dirname(filename)
+            config_dir = os.path.dirname(filename)
             sys.path.insert(0, config_dir)
             mod = import_module(module_name)
             sys.path.pop(0)
