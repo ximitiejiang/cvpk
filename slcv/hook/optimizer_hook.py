@@ -21,11 +21,11 @@ class OptimizerHook(Hook):
 
     def after_train_iter(self, runner):
         """每个循环结束：优化器清零，基于损失计算梯度(loss.backward)，基于梯度用优化器更新参数(optimizer step)，"""
-        runner.optimizer.zero_grad() # 清零上一个iter的梯度
-        runner.loss.backward()       # 计算梯度
-        if self.grad_clip is not None:
-            self.clip_grads(runner.model.parameters())
-        runner.optimizer.step()      # 更新参数
+        runner.optimizer.zero_grad()            # 清零上一个iter的梯度
+        runner.outputs['loss'].backward()       # 计算梯度
+#        if self.grad_clip is not None:
+#            self.clip_grads(runner.model.parameters())
+        runner.optimizer.step()                 # 更新参数
 
 if __name__ == '__main__':
     h = OptimizerHook()

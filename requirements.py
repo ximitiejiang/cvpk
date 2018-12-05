@@ -5,12 +5,13 @@ Created on Fri Nov 30 17:58:58 2018
 
 @author: ubuntu
 """
-"""
-#-----step1-----------
+
+"""-----step1-----------
 python3 -m visdom.server
 """
 
-#-----step2-----------
+"""-----step2-----------
+"""
 import sys, os
 rootpath = os.path.dirname(__file__)
 sys.path.insert(0, rootpath)

@@ -6,10 +6,12 @@ Created on Sun Dec  2 17:36:46 2018
 @author: ubuntu
 """
 import torch
-import torch.nn.functional as F
 import sys
+from collections import OrderedDict
 from slcv.hook.hook import Hook
 from slcv.hook.optimizer_hook import OptimizerHook
+from slcv.hook.visdom_logger_hook import VisdomLoggerHook
+from ..hook.log_buffer import LogBuffer
 
 def accuracy(output, target, topk=(1, )):
     """Computes the precision@k for the specified values of k"""
@@ -65,6 +67,7 @@ class Runner():
         cfg，配置对象
     """
     def __init__(self, dataloader, model, optimizer, cfg):
+        self.dataloader = dataloader
         self.model = model
         if optimizer is not None:
             self.optimizer = self.init_optimizer(optimizer)
@@ -72,6 +75,9 @@ class Runner():
             self.optimizer = None
         self.cfg = cfg
         self._hooks = []
+        self.log_buffer = LogBuffer()
+        self._iter = 0
+        self._epoch = 0
     
     def model_name(self):
         return self.model.__class__.__name__ 
@@ -91,10 +97,6 @@ class Runner():
                     'but got {}'.format(type(optimizer)))
         return optimizer
     
-    def init_criterion(self, criterion):
-        """定义损失函数:当前只接收标准pytorch的criterion(loss)
-        """
-        return criterion
     
     @property
     def hooks(self):
@@ -110,10 +112,12 @@ class Runner():
         if isinstance(args, Hook):
             hook = args
         elif isinstance(args, dict):
-            hook = sub_hook_class(args)
-        self._hooks.insert(0, hook)
+            hook = sub_hook_class(args)  # 创建hook对象
+        self._hooks.insert(0, hook)      # 加入_hooks数组
     
-    def register_hooks(self, optimizer_config):
+    def register_hooks(self, 
+                       optimizer_config,
+                       log_config):
         """注册hooks, 默认hooks包括
         lr_hook, 
         optimizer_hook, 
@@ -121,9 +125,8 @@ class Runner():
         iter_time_hook, 
         logger_hook
         """
-        if optimizer_config is None:
-            optimizer_config = {}
         self.register(optimizer_config, OptimizerHook)
+        self.register(log_config, VisdomLoggerHook)
     
     def call_hook(self, fn_name):
         """批量调用Hook类中所有hook实例的对应方法"""
@@ -134,27 +137,39 @@ class Runner():
         pass
     
     def train(self):
+        if torch.cuda.is_available():
+            self.model.cuda()
+            
         self.model.train()
         
         self.call_hook('before_run')
-        for i in range(self.cfg.total_epochs):
+        for i in range(self.cfg.epoch_num):
             self.call_hook('before_train_epoch')
-
-            for j, (imgs, labels) in self.dataloader:
+            
+            for j, (imgs, labels) in enumerate(self.dataloader):
                  self.call_hook('before_train_iter')
                  if torch.cuda.is_available():
                      imgs = imgs.cuda()
                      labels = labels.cuda()
                  
                  pred = self.model(imgs)
-                 acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))
                  # 复杂loss则通过loss function导入计算            
-                 loss = F.cross_entropy(pred, labels, reduction='none')
+                 loss = torch.nn.CrossEntropyLoss()(pred,labels)
                  
-                 self.outputs = dict(loss = loss.item(), acc_top1=acc_top1.item(), acc_top5 = acc_top5.item()) 
+                 # outputs作为汇总变量，传入hooks
+                 acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))
+                 log_vars = OrderedDict()
+                 log_vars['loss'] = loss.item()
+                 log_vars['acc_top1'] = acc_top1.item()
+                 log_vars['acc_top5'] = acc_top5.item()
+                 
+                 self.outputs = dict(loss=loss, log_vars=log_vars, num_samples=imgs.size(0))
+                 self.log_buffer.update(self.outputs['log_vars'])
                  self.call_hook('after_train_iter')
                  
+                 self._iter += 1
             self.call_hook('after_train_epoch')
+            self._epoch += 1
         self.call_hook('after_run')
         
     def val(self):

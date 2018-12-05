@@ -75,7 +75,7 @@ class Hook(object):
     def end_of_epoch(self, runner):
         return runner.inner_iter + 1 == len(runner.data_loader)
     
-    def test_hook(self):
+    def test_hook(self, runner):  # only for function test
         print('hello, this is father hook!')
 
 

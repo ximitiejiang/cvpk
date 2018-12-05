@@ -88,8 +88,8 @@ class Config(object):
             raise TypeError('cfg_dict must be a dict, but got {}'.format(
                 type(cfg_dict)))
 
-        super(Config, self).__setattr__('_cfg_dict', ConfigDict(cfg_dict))
-        super(Config, self).__setattr__('_filename', filename)
+        super(Config, self).__setattr__('_cfg_dict', ConfigDict(cfg_dict)) #创建_cfg_dict
+        super(Config, self).__setattr__('_filename', filename)  # 创建filename
         if filename:
             with open(filename, 'r') as f:
                 super(Config, self).__setattr__('_text', f.read())
