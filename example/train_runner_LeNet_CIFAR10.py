@@ -28,5 +28,5 @@ optimizer = cfg.optimizer
 
 # 3. 训练
 runner = Runner(trainloader, model, optimizer, cfg) # cfg对象也先传进去，想挂参数应该是需要的
-runner.register_hooks(cfg.optimizer_config, cfg.log_config)
+runner.register_hooks(cfg.optimizer_config, cfg.log_config, cfg.text_config)
 runner.train()

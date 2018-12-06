@@ -14,23 +14,23 @@ import sys
 用于定义模型相关参数，如下是相关必选参数，不可修改变量名
 model
 """
-model_name = 'LeNet5'
+model_name = 'darknet'
+model_cfg = '../slcv/model/yolov3.cfg'
 
 """--------------------datasets-------------------------------
 用于定义数据集相关参数，如下是相关必选参数，不可修改变量名
 dataset_name/data_root/mean/std/num_classes/input_size/input_layers/batch_size
 """
-dataset_name = 'cifar10'       # 如果是exist_datasets则需要输入跟exist_datasets要求的名字
-if sys.platform == 'linux':    # for ubuntu
-    data_root = '/home/ubuntu/MyDatasets/CIFAR10'     # for ubuntu 
-else:                          # for Mac os
-    data_root = '/Users/suliang/MyDatasets/CIFAR10'   # for mac os
+dataset_name = 'VOC2007'       # 如果是exist_datasets则需要输入跟exist_datasets要求的名字
+
+data_root = '/home/ubuntu/MyDatasets/voc/VOCdevkit'     # for ubuntu 
+
 mean = [0.4914, 0.4822, 0.4465]
 std = [0.2023, 0.1994, 0.2010]
-num_classes = 10
-input_size = 32   # 图片传入网络的size
+#num_classes = 10
+#input_size = 32   # 图片传入网络的size
 input_layers = 3  # 图片传入网络的层数
-batch_size = 64
+batch_size = 16   # yolo源码16
 
 """--------------------optimizer-------------------------------
 用于优化器相关参数，如下是相关必选参数，不可修改变量名
@@ -44,10 +44,8 @@ optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=5e-4)
 运行时相关参数，如下是相关必选参数，不可修改变量名
 epoch_num/
 """
-epoch_num = 6
-work_dir = './demo'   # 在examples目录下自添加一个demo文件夹
-gpus = range(2)
-dist_params = dict(backend='nccl')
+epoch_num = 1   #源码为30
+checkpoints_dir = '../checkpoints'
 data_workers = 2  # data workers per gpu
 workflow = [('train', 1), ('val', 1)]
 resume_from = None
@@ -58,8 +56,7 @@ load_from = None
 optimizer_config/log_config/
 """
 optimizer_config = dict(grad_clip=None)
-lr_config = dict(policy='step', step=2)
-text_config = dict(interval = 0)     # 输出iter数的间隔，0表示不输出
+lr_config = dict(policy='step', step=2)  #TODO
+text_config = dict(interval = 500)     # 输出iter数的间隔，0表示不输出
 checkpoint_config = dict(interval=2)  # save checkpoint at every epoch
-log_config = dict(interval=20)         # 每隔n个interval显示，如果interval=0则每个epoch显示
-                                      # 可选择VisdomLoggerHook/TensorboardLoggerHook
+log_config = dict(interval=20)        # 每隔n个interval显示，如果interval=0则每个epoch显示

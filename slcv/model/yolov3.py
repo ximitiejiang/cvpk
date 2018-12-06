@@ -128,7 +128,7 @@ def build_targets(
 
 def create_modules(module_defs):
     """
-    Constructs module list of layer blocks from module configuration in module_defs
+    基于module_defs组建模型各个层
     """
     hyperparams = module_defs.pop(0)
     output_filters = [int(hyperparams["channels"])]
@@ -144,13 +144,13 @@ def create_modules(module_defs):
             modules.add_module(
                 "conv_%d" % i,
                 nn.Conv2d(
-                    in_channels=output_filters[-1],
-                    out_channels=filters,
-                    kernel_size=kernel_size,
-                    stride=int(module_def["stride"]),
-                    padding=pad,
-                    bias=not bn,
-                ),
+                    in_channels=output_filters[-1],  # 上一层filter代表输入层
+                    out_channels=filters,            # filter代表输出层
+                    kernel_size=kernel_size,         # size代表kernel
+                    stride=int(module_def["stride"]),# stride代表步长
+                    padding=pad,                     # pad代表补0
+                    bias=not bn,                     # 有bn则无bias
+                )
             )
             if bn:
                 modules.add_module("batch_norm_%d" % i, nn.BatchNorm2d(filters))
@@ -338,8 +338,8 @@ class YOLOLayer(nn.Module):
 
 
 def parse_model_config(path):
-    """ 解析模型配置文件生成模型定义
-    Parses the yolo-v3 layer configuration file and returns module definitions
+    """ 解析模型配置文件生成模型定义, 生成module_defs给create_modules()生成模型
+    module_defs = [{'type':xx, 'key':value}, {xx}, {xx}...]
     """
     file = open(path, 'r')
     lines = file.read().split('\n')
@@ -362,9 +362,8 @@ def parse_model_config(path):
 
 class Darknet(nn.Module):
     """YOLOv3 object detection model
-    输入：config_path
- 
-         img_size
+    输入：config_path, 为darknet.cfg
+         img_size, 默认darknet要求的尺寸为416
     """
 
     def __init__(self, config_path, img_size=416):

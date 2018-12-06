@@ -11,6 +11,8 @@ from collections import OrderedDict
 from slcv.hook.hook import Hook
 from slcv.hook.optimizer_hook import OptimizerHook
 from slcv.hook.visdom_logger_hook import VisdomLoggerHook
+from slcv.hook.timer_hook import TimerHook
+from slcv.hook.text_hook import TextHook
 from ..hook.log_buffer import LogBuffer
 
 def accuracy(output, target, topk=(1, )):
@@ -102,7 +104,7 @@ class Runner():
     def hooks(self):
         return self._hooks
     
-    def register(self, args, sub_hook_class=None):
+    def register(self, sub_hook_class, args=None):
         """基于hook config创建hook对象，并加载入_hook变量
         输入：args, 为hook创建参数
             sub_hook_class为hook的子类
@@ -110,14 +112,19 @@ class Runner():
         如果是dict，就需要再输入sub_hook_class
         """
         if isinstance(args, Hook):
-            hook = args
+            hook = args                  # 创建现成hook
         elif isinstance(args, dict):
-            hook = sub_hook_class(args)  # 创建hook对象
-        self._hooks.insert(0, hook)      # 加入_hooks数组
+            hook = sub_hook_class(args)  # 创建带参hook对象
+        elif args is None:
+            hook = sub_hook_class()      # 创建不带参hook
+        else:
+            raise TypeError('args should be hook obj or dict type')
+        self._hooks.insert(0, hook)      # 加入_hooks数组,最后一个hook放最前面，也最先执行
     
     def register_hooks(self, 
                        optimizer_config,
-                       log_config):
+                       log_config,
+                       text_config):
         """注册hooks, 默认hooks包括
         lr_hook, 
         optimizer_hook, 
@@ -125,8 +132,11 @@ class Runner():
         iter_time_hook, 
         logger_hook
         """
-        self.register(optimizer_config, OptimizerHook)
-        self.register(log_config, VisdomLoggerHook)
+        self.register(OptimizerHook, optimizer_config)
+        self.register(VisdomLoggerHook, log_config)
+        self.register(TextHook, text_config)
+        self.register(TimerHook)
+        
     
     def call_hook(self, fn_name):
         """批量调用Hook类中所有hook实例的对应方法"""

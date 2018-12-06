@@ -14,9 +14,16 @@ class LogBuffer():
     会存放在这里
     """
     def __init__(self):
+        """value_history {'loss':[], 'acc_top1':[], 'acc_top5':[], 
+                            'iter_time':[], 'epoch_time':[]}
+           count_history {'loss':[], 'acc_top1':[], 'acc_top5':[], 
+                            'iter_time':[], 'epoch_time':[]}
+           内置变量可以有不同的list长度。
+        """
         self.value_history = OrderedDict()   # 用于存储数据
         self.count_history = OrderedDict()   # 用于存储数据次数
         self.average_output = OrderedDict()  # 用于存储阶段性输出值
+        
         self.ready = False
         
     def clear(self):
@@ -35,15 +42,17 @@ class LogBuffer():
                 self.count_history[key] = []
             self.value_history[key].append(var)
             self.count_history[key].append(1)
+        self.ready = False
     
-    def average(self, interval=0):
-        """计算平均值： 预留扩展，如果要interver=n进行一次平均，则可增加n参数
+    def average(self, interval):
+        """计算平均值： 如果要interver=n进行一次平均，则可增加n参数
         log_buffer.average_buffer是一个平均值字典{'loss':float, 'acc_top1':float, 'acc_top5':float}
         """
+        interval = int(interval)
         for key in self.value_history:
-            values = np.array(self.value_history[key][:])
-            nums = np.array(self.count_history[key][:])
-            avg = np.sum(values * nums) / np.sum(nums)
+            val = np.array(self.value_history[key][-interval:])
+            num = np.array(self.count_history[key][-interval:])
+            avg = np.sum(val * num) / np.sum(num)  # array的*代表逐个相乘
             self.average_output[key] = avg
         self.ready = True
 
