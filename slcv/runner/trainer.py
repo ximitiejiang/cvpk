@@ -15,7 +15,7 @@ import torch
 from torch import nn, optim
 import os
 import time
-from slcv.visualization.visualization import Visualization
+from slcv.utils.visualization import Visualization
 
 def define_criterion(name):
     '''定义loss损失函数

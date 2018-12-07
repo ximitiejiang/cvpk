@@ -58,6 +58,8 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
 
 def build_targets(
     pred_boxes, pred_conf, pred_cls, target, anchors, num_anchors, num_classes, grid_size, ignore_thres, img_dim):
+    """这是yolov3算法用来通过聚类的方式生成anchor box的子程序
+    """
     nB = target.size(0)
     nA = num_anchors
     nC = num_classes
@@ -392,7 +394,7 @@ class Darknet(nn.Module):
             # 短路层的输出计算
             elif module_def["type"] == "shortcut":
                 layer_i = int(module_def["from"])
-                x = layer_outputs[-1] + layer_outputs[layer_i]
+                x = layer_outputs[-1] + layer_outputs[layer_i]  # 残差模块做输出相加
             # yolo层的输出计算
             # yolo训练时：
             elif module_def["type"] == "yolo":
@@ -404,7 +406,7 @@ class Darknet(nn.Module):
                 # Test phase: Get detections
                 else:
                     x = module(x)
-                output.append(x)
+                output.append(x)   # output用来存放所有3个yolo层的输出[]
             layer_outputs.append(x)
 
         self.losses["recall"] /= 3
@@ -492,6 +494,19 @@ class Darknet(nn.Module):
         fp.close()
 
 if __name__ =='__main__':
+    """测试整个模型生成过程：
+    1. 创建nn.ModuleList：用来放置多个nn.Sequential
+        module_list = nn.ModuleList()
+        module_list.append(modules)
+        
+    2. 创建nn.Sequential：用来放置多个module
+        modules = nn.Sequential()
+        modules.add_module(name, module)
+    
+    3. 创建module：即pytorch中的module对象
+        module = nn.Conv2d(xxxx)
+        
+    """
     config_path = 'yolov3.cfg'
     model = Darknet(config_path, img_size=416)
     print(model)

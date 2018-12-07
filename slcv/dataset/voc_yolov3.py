@@ -123,6 +123,7 @@ class ListDataset(Dataset):
 
 class VOCDetection(Dataset):
     """专门针对VOC数据集的定义
+    还没调通
     """
     def __init__(self, root, image_set, transform=None, target_transform=None, img_size = 416):
         """
