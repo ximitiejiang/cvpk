@@ -141,6 +141,7 @@ class Runner():
         if text_config is not None:
             self.register(TextHook, text_config)
         
+        
     
     def call_hook(self, fn_name):
         """批量调用Hook类中所有hook实例的对应方法"""
@@ -167,21 +168,42 @@ class Runner():
             for j, (imgs, labels) in enumerate(self.dataloader):
                  self.call_hook('before_train_iter')
                  if torch.cuda.is_available():
-                     imgs = imgs.to(device)
-                     labels = labels.to(device)
+                     imgs = imgs.float().to(device)
+                     labels = labels.float().to(device)
                  
-                 pred = self.model(imgs)
-                 # 复杂loss则通过loss function导入计算            
-                 loss = torch.nn.CrossEntropyLoss()(pred,labels)
+#                 pred = self.model(imgs)
+#                 loss = torch.nn.CrossEntropyLoss()(pred,labels)
                  
-                 # outputs作为汇总变量，传入hooks
-                 acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))
-                 log_vars = OrderedDict()
-                 log_vars['loss'] = loss.item()
-                 log_vars['acc_top1'] = acc_top1.item()
-                 log_vars['acc_top5'] = acc_top5.item()
+                # 基于yolov3模型修改runner主结构: 此处loss为yolo layer的output后求sum()
+                 loss = self.model(imgs, labels)
                  
-                 self.outputs = dict(loss=loss, log_vars=log_vars, num_samples=imgs.size(0))
+                 print("[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, recall: %.5f, precision: %.5f]" 
+                       % (self._epoch,
+                          self.cfg.epoch_num,
+                          self._iter,
+                          len(self.dataloader),
+                          self.model.losses["x"],
+                          self.model.losses["y"],
+                          self.model.losses["w"],
+                          self.model.losses["h"],
+                          self.model.losses["conf"],
+                          self.model.losses["cls"],
+                          loss.item(),
+                          self.model.losses["recall"],
+                          self.model.losses["precision"],
+                          )
+                       )
+                 
+                 
+#                 acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))
+#                 log_vars = OrderedDict()
+#                 log_vars['loss'] = loss.item()
+#                 log_vars['acc_top1'] = acc_top1.item()
+#                 log_vars['acc_top5'] = acc_top5.item()
+                 
+#                 self.outputs = dict(loss=loss, log_vars=log_vars, num_samples=imgs.size(0))
+                 self.outputs = dict(loss=loss) # yolov3修改，目的是loss传进optimizer_hook做backward计算(也避免修改其他文件)
+                 
                  self.log_buffer.update(self.outputs['log_vars'])
                  self.call_hook('after_train_iter')
                  

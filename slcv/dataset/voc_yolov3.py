@@ -290,7 +290,7 @@ class VOCDataset(Dataset):
 
             labels = np.array(labels) 
             
-            """此处对坐标进行padding的原因未知
+            """对坐标进行padding
             """
             # Extract coordinates for unpadded + unscaled image, and adjust for added padding
             x1 = labels[:, 1] + pad[1][0]

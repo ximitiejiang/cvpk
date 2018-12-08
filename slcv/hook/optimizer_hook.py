@@ -8,6 +8,7 @@ Created on Mon Dec  3 11:17:10 2018
 
 from torch.nn.utils import clip_grad
 from .hook import Hook
+import os
 
 class OptimizerHook(Hook):
     """优化器hook
@@ -38,7 +39,7 @@ class OptimizerHook(Hook):
         for k,(name, p) in enumerate(runner.model.named_parameters()):
             out.append((name, p.grad.data.std()))
         
-        write_txt(out, file_name='grad',type='a+')
+        self.write_txt(out, file_name='grad',type='a+')
         
     def _output_param_std(self, runner):        
         """输出参数std，检查参数是否正常"""
@@ -46,7 +47,7 @@ class OptimizerHook(Hook):
         for k,(name, p) in enumerate(runner.model.named_parameters()):
             out.append((name, p.data.mean(),p.data.std()))
         
-        write_txt(out, file_name='parameter',type='a+')   
+        self.write_txt(out, file_name='parameter',type='a+')   
     
     def clip_grads(self, params):
         clip_grad.clip_grad_norm_(

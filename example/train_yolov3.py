@@ -13,7 +13,7 @@ Created on Thu Dec  6 14:58:50 2018
 """
 import torch
 from torch.utils.data import DataLoader
-from slcv.runner.runner import Runner
+from slcv.runner.runner_yolov3 import Runner
 
 from slcv.model.yolov3 import Darknet
 from slcv.utils.init import weights_init_normal
@@ -40,7 +40,8 @@ optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters(
 
 # ----------------------3. 训练---------------------------------------
 runner = Runner(trainloader, model, optimizer, cfg) # cfg对象也先传进去，想挂参数应该是需要的
-runner.register_hooks(cfg.optimizer_config, cfg.log_config, cfg.text_config)
+#runner.register_hooks(cfg.optimizer_config, cfg.log_config, cfg.text_config)
+runner.register_hooks(cfg.optimizer_config)
 runner.train()
 
 

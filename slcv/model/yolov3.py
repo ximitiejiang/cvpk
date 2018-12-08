@@ -211,14 +211,16 @@ class EmptyLayer(nn.Module):
 
 
 class YOLOLayer(nn.Module):
-    """Detection layer"""
+    """Detection layer, 其中定义了关键损失函数
+    4个坐标回归，采用
+    """
 
     def __init__(self, anchors, num_classes, img_dim):
         super(YOLOLayer, self).__init__()
         self.anchors = anchors
         self.num_anchors = len(anchors)
         self.num_classes = num_classes
-        self.bbox_attrs = 5 + num_classes
+        self.bbox_attrs = 5 + num_classes  # 单个bbox的预测量个数(4坐标，1类别，20分类)
         self.image_dim = img_dim
         self.ignore_thres = 0.5
         self.lambda_coord = 1
@@ -228,19 +230,22 @@ class YOLOLayer(nn.Module):
         self.ce_loss = nn.CrossEntropyLoss()  # Class loss
 
     def forward(self, x, targets=None):
-        nA = self.num_anchors
-        nB = x.size(0)
-        nG = x.size(2)
-        stride = self.image_dim / nG
+        """输入size (16 x 75 x13 x 13)：32倍下采样则是(416/32=13), 16倍下采样则是(416/16=26),8倍下采样则是(416/8=52)
+        75中代表的是3(4+1+20)=75个预测信息
+        """
+        nA = self.num_anchors  # 3个anchors
+        nB = x.size(0)         # 16张图
+        nG = x.size(2)         # 13的宽高
+        stride = self.image_dim / nG  # 32倍下采样
 
         # Tensors for cuda support
         FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
         LongTensor = torch.cuda.LongTensor if x.is_cuda else torch.LongTensor
         ByteTensor = torch.cuda.ByteTensor if x.is_cuda else torch.ByteTensor
-
+        # (16, 3, 25, 13, 13) -> (16, 3, 13, 13, 25)
         prediction = x.view(nB, nA, self.bbox_attrs, nG, nG).permute(0, 1, 3, 4, 2).contiguous()
 
-        # Get outputs
+        # Get outputs分别获得预测的6大部分输出：x,y,w,h,confidence, classes
         x = torch.sigmoid(prediction[..., 0])  # Center x
         y = torch.sigmoid(prediction[..., 1])  # Center y
         w = prediction[..., 2]  # Width
@@ -378,9 +383,15 @@ class Darknet(nn.Module):
         self.loss_names = ["x", "y", "w", "h", "conf", "cls", "recall", "precision"] # 定义8个损失
 
     def forward(self, x, targets=None):
+        """ self.losses = {} 用于存储各种loss = {'x':,'y':,'w':,'h':,'conf':,'cls':,'recall':,'precision':}
+            output = [] 用于存储yolo的输出元组 
+                        output = (loss,loss_x.item(),loss_y.item(),
+                        loss_w.item(),loss_h.item(),loss_conf.item(),
+                        loss_cls.item(),recall,precision)
+        """
         is_training = targets is not None
         output = []
-        # 用defaultdict存储loss,这样在调用没有的键名的时不会报错。
+        
         self.losses = defaultdict(float)
         layer_outputs = []
         for i, (module_def, module) in enumerate(zip(self.module_defs, self.module_list)):
@@ -406,7 +417,7 @@ class Darknet(nn.Module):
                 # Test phase: Get detections
                 else:
                     x = module(x)
-                output.append(x)   # output用来存放所有3个yolo层的输出[]
+                output.append(x)   # output用来存放yolo层的输出[]
             layer_outputs.append(x)
 
         self.losses["recall"] /= 3
