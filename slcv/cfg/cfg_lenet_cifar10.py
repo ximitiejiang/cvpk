@@ -45,7 +45,8 @@ optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=5e-4)
 epoch_num/
 """
 epoch_num = 6
-work_dir = './demo'   # 在examples目录下自添加一个demo文件夹
+checkpoints_dir = '../checkpoints'
+working_dir = '../checkpoints/working'   # 在checkpoints目录下添加一个输出工作文件夹
 gpus = range(2)
 dist_params = dict(backend='nccl')
 data_workers = 2  # data workers per gpu

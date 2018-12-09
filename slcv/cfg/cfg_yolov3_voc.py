@@ -46,6 +46,7 @@ epoch_num/
 """
 epoch_num = 1   #源码为30
 checkpoints_dir = '../checkpoints'
+working_dir = '../checkpoints/working'
 data_workers = 2  # data workers per gpu
 workflow = [('train', 1), ('val', 1)]
 resume_from = None

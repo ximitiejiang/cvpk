@@ -13,8 +13,12 @@ This is a temporary script file.
 
 """
 
-import tensorflow as tf
+#import tensorflow as tf
+from slcv.cfg import Config
 from tensorboardX import SummaryWriter
-writer = SummaryWriter('runs')  # 创建一个writer对象，并在根目录创建了‘runs’文件夹
+
+cfg = Config.from_file('./?/cfg_lenet_cifar10.py')
+
+writer = SummaryWriter('runs')  #创建一个writer对象，并在根目录创建了‘runs’文件夹
 
 writer.add_scalar('Train/Loss', loss.data[0], niter)
