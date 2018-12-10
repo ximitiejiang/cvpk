@@ -152,6 +152,7 @@ class Runner():
         pass
     
     def train(self):
+        torch.cuda.empty_cache()
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         if torch.cuda.device_count() > 1:
             self.model = torch.nn.DataParallel(self.model)

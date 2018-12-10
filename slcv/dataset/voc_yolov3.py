@@ -238,9 +238,14 @@ class VOCDataset(Dataset):
                        os.path.join(base_path, dataset_name,"Annotations", filename + ".xml")) for filename in self.files]
         self.classes = classes
         self.img_shape = (img_size, img_size)
-        self.max_objects = 50
+        self.max_objects = 50 #定义了每张图片最多bbox个数，也就定义了labels的输出形式(batch_size, max_obj, 5)
+                              #其中5为每个bbox的坐标(yc,xc,w,h,class)
 
     def __getitem__(self, index):
+        """图片读取和处理全过程：
+        1. 读取图片 - 2. 通过加pad把图片变成方形，并归一化(1/255) - 
+        3. 图片resize到目标尺寸 - 4. 图片维度修正(C,H,W)
+        """
 
         # ---------
         #  Image
@@ -290,7 +295,7 @@ class VOCDataset(Dataset):
 
             labels = np.array(labels) 
             
-            """对坐标进行padding
+            """对坐标进行padding修正(图片添加padding，相应的labels也需要)
             """
             # Extract coordinates for unpadded + unscaled image, and adjust for added padding
             x1 = labels[:, 1] + pad[1][0]

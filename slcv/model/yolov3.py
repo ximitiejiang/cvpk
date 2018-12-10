@@ -58,7 +58,7 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
 
 def build_targets(
     pred_boxes, pred_conf, pred_cls, target, anchors, num_anchors, num_classes, grid_size, ignore_thres, img_dim):
-    """这是yolov3算法用来通过聚类的方式生成anchor box的子程序
+    """这是yolov3算法用来生成anchor box的子程序
     """
     nB = target.size(0)
     nA = num_anchors
@@ -233,21 +233,24 @@ class YOLOLayer(nn.Module):
         """输入size (16 x 75 x13 x 13)：32倍下采样则是(416/32=13), 16倍下采样则是(416/16=26),8倍下采样则是(416/8=52)
         75中代表的是3(4+1+20)=75个预测信息
         """
-        nA = self.num_anchors  # 3个anchors
-        nB = x.size(0)         # 16张图
-        nG = x.size(2)         # 13的宽高
+        nA = self.num_anchors  # num of anchors(3个anchors)
+        nB = x.size(0)         # num of batch(16张图)
+        nG = x.size(2)         # num of grid points(???13的宽高)
         stride = self.image_dim / nG  # 32倍下采样
 
         # Tensors for cuda support
         FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
         LongTensor = torch.cuda.LongTensor if x.is_cuda else torch.LongTensor
         ByteTensor = torch.cuda.ByteTensor if x.is_cuda else torch.ByteTensor
-        # (16, 3, 25, 13, 13) -> (16, 3, 13, 13, 25)
+        # 参考https://github.com/ultralytics/yolov3/blob/master/models.py
+        # (batch_size, num_anchor, map_size, map_size) -> ()
+        # (16, 75, 13, 13) -> (16, 3, 25, 13, 13) -> (16,3,13,13,25)
         prediction = x.view(nB, nA, self.bbox_attrs, nG, nG).permute(0, 1, 3, 4, 2).contiguous()
 
         # Get outputs分别获得预测的6大部分输出：x,y,w,h,confidence, classes
         x = torch.sigmoid(prediction[..., 0])  # Center x
         y = torch.sigmoid(prediction[..., 1])  # Center y
+        
         w = prediction[..., 2]  # Width
         h = prediction[..., 3]  # Height
         pred_conf = torch.sigmoid(prediction[..., 4])  # Conf
@@ -422,6 +425,7 @@ class Darknet(nn.Module):
 
         self.losses["recall"] /= 3
         self.losses["precision"] /= 3
+        # 把3个yolo layer的loss放在output list中 [loss1, loss2, loss3]
         return sum(output) if is_training else torch.cat(output, 1)
 
     def load_weights(self, weights_path):

@@ -65,6 +65,7 @@ def _rectangle(ab,color = 'r'):  # (ymin, xmin, ymax, xmax)
     '''绘制一个矩形: 需要在该程序运行之前创建一个figure (plt.figure())
     input: ab = [ymin, xmin, ymax, xmax]
     '''
+    ab = np.array(ab)
     ab = ab.reshape(1,4)
     xmin = np.asscalar(ab[0,1])
     xmax = np.asscalar(ab[0,3])
