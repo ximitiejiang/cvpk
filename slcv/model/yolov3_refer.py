@@ -6,16 +6,170 @@ Created on Mon Dec 10 15:50:00 2018
 @author: ubuntu
 """
 
-"""另一个yolov3 model
+"""另一个yolov3 model，源模型基于coco数据集
 参考：https://github.com/ultralytics/yolov3/blob/master/models.py
 """
 from collections import defaultdict
-
+import torch
 import torch.nn as nn
+import numpy as np
 
-from utils.parse_config import *
-from utils.utils import *
+#from utils.parse_config import *
+#from utils.utils import *
 
+def class_weights():  # frequency of each class in coco train2014
+    weights = 1 / torch.FloatTensor(
+        [187437, 4955, 30920, 6033, 3838, 4332, 3160, 7051, 7677, 9167, 1316, 1372, 833, 6757, 7355, 3302, 3776, 4671,
+         6769, 5706, 3908, 903, 3686, 3596, 6200, 7920, 8779, 4505, 4272, 1862, 4698, 1962, 4403, 6659, 2402, 2689,
+         4012, 4175, 3411, 17048, 5637, 14553, 3923, 5539, 4289, 10084, 7018, 4314, 3099, 4638, 4939, 5543, 2038, 4004,
+         5053, 4578, 27292, 4113, 5931, 2905, 11174, 2873, 4036, 3415, 1517, 4122, 1980, 4464, 1190, 2302, 156, 3933,
+         1877, 17630, 4337, 4624, 1075, 3468, 135, 1380])
+    weights /= weights.sum()
+    return weights
+
+def bbox_iou(box1, box2, x1y1x2y2=True):
+    """
+    Returns the IoU of two bounding boxes
+    """
+    if x1y1x2y2:
+        # Get the coordinates of bounding boxes
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
+    else:
+        # Transform from center and width to exact coordinates
+        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
+        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
+        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
+        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
+
+    # get the coordinates of the intersection rectangle
+    inter_rect_x1 = torch.max(b1_x1, b2_x1)
+    inter_rect_y1 = torch.max(b1_y1, b2_y1)
+    inter_rect_x2 = torch.min(b1_x2, b2_x2)
+    inter_rect_y2 = torch.min(b1_y2, b2_y2)
+    # Intersection area
+    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1, 0) * torch.clamp(inter_rect_y2 - inter_rect_y1, 0)
+    # Union Area
+    b1_area = (b1_x2 - b1_x1) * (b1_y2 - b1_y1)
+    b2_area = (b2_x2 - b2_x1) * (b2_y2 - b2_y1)
+
+    return inter_area / (b1_area + b2_area - inter_area + 1e-16)
+
+
+def build_targets(pred_boxes, pred_conf, pred_cls, target, anchor_wh, nA, nC, nG, batch_report):
+    """
+    returns nT, nCorrect, tx, ty, tw, th, tconf, tcls
+    """
+    nB = len(target)  # number of images in batch
+    nT = [len(x) for x in target]  # torch.argmin(target[:, :, 4], 1)  # targets per image
+    tx = torch.zeros(nB, nA, nG, nG)  # batch size (4), number of anchors (3), number of grid points (13)
+    ty = torch.zeros(nB, nA, nG, nG)
+    tw = torch.zeros(nB, nA, nG, nG)
+    th = torch.zeros(nB, nA, nG, nG)
+    tconf = torch.ByteTensor(nB, nA, nG, nG).fill_(0)
+    tcls = torch.ByteTensor(nB, nA, nG, nG, nC).fill_(0)  # nC = number of classes
+    TP = torch.ByteTensor(nB, max(nT)).fill_(0)
+    FP = torch.ByteTensor(nB, max(nT)).fill_(0)
+    FN = torch.ByteTensor(nB, max(nT)).fill_(0)
+    TC = torch.ShortTensor(nB, max(nT)).fill_(-1)  # target category
+
+    for b in range(nB):
+        nTb = nT[b]  # number of targets
+        if nTb == 0:
+            continue
+        t = target[b]
+        if batch_report:
+            FN[b, :nTb] = 1
+
+        # Convert to position relative to box
+        TC[b, :nTb], gx, gy, gw, gh = t[:, 0].long(), t[:, 1] * nG, t[:, 2] * nG, t[:, 3] * nG, t[:, 4] * nG
+        # Get grid box indices and prevent overflows (i.e. 13.01 on 13 anchors)
+        gi = torch.clamp(gx.long(), min=0, max=nG - 1)
+        gj = torch.clamp(gy.long(), min=0, max=nG - 1)
+
+        # iou of targets-anchors (using wh only)
+        box1 = t[:, 3:5] * nG
+        # box2 = anchor_grid_wh[:, gj, gi]
+        box2 = anchor_wh.unsqueeze(1).repeat(1, nTb, 1)
+        inter_area = torch.min(box1, box2).prod(2)
+        iou_anch = inter_area / (gw * gh + box2.prod(2) - inter_area + 1e-16)
+
+        # Select best iou_pred and anchor
+        iou_anch_best, a = iou_anch.max(0)  # best anchor [0-2] for each target
+
+        # Select best unique target-anchor combinations
+        if nTb > 1:
+            iou_order = np.argsort(-iou_anch_best)  # best to worst
+
+            # Unique anchor selection (slower but retains original order)
+            u = torch.cat((gi, gj, a), 0).view(3, -1).numpy()
+            _, first_unique = np.unique(u[:, iou_order], axis=1, return_index=True)  # first unique indices
+
+            i = iou_order[first_unique]
+            # best anchor must share significant commonality (iou) with target
+            i = i[iou_anch_best[i] > 0.10]
+            if len(i) == 0:
+                continue
+
+            a, gj, gi, t = a[i], gj[i], gi[i], t[i]
+            if len(t.shape) == 1:
+                t = t.view(1, 5)
+        else:
+            if iou_anch_best < 0.10:
+                continue
+            i = 0
+
+        tc, gx, gy, gw, gh = t[:, 0].long(), t[:, 1] * nG, t[:, 2] * nG, t[:, 3] * nG, t[:, 4] * nG
+
+        # Coordinates
+        tx[b, a, gj, gi] = gx - gi.float()
+        ty[b, a, gj, gi] = gy - gj.float()
+
+        # Width and height (yolo method)
+        tw[b, a, gj, gi] = torch.log(gw / anchor_wh[a, 0])
+        th[b, a, gj, gi] = torch.log(gh / anchor_wh[a, 1])
+
+        # Width and height (power method)
+        # tw[b, a, gj, gi] = torch.sqrt(gw / anchor_wh[a, 0]) / 2
+        # th[b, a, gj, gi] = torch.sqrt(gh / anchor_wh[a, 1]) / 2
+
+        # One-hot encoding of label
+        tcls[b, a, gj, gi, tc] = 1
+        tconf[b, a, gj, gi] = 1
+
+        if batch_report:
+            # predicted classes and confidence
+            tb = torch.cat((gx - gw / 2, gy - gh / 2, gx + gw / 2, gy + gh / 2)).view(4, -1).t()  # target boxes
+            pcls = torch.argmax(pred_cls[b, a, gj, gi], 1).cpu()
+            pconf = torch.sigmoid(pred_conf[b, a, gj, gi]).cpu()
+            iou_pred = bbox_iou(tb, pred_boxes[b, a, gj, gi].cpu())
+
+            TP[b, i] = (pconf > 0.5) & (iou_pred > 0.5) & (pcls == tc)
+            FP[b, i] = (pconf > 0.5) & (TP[b, i] == 0)  # coordinates or class are wrong
+            FN[b, i] = pconf <= 0.5  # confidence score is too low (set to zero)
+
+    return tx, ty, tw, th, tconf, tcls, TP, FP, FN, TC
+
+
+def parse_model_config(path):
+    """Parses the yolo-v3 layer configuration file and returns module definitions"""
+    file = open(path, 'r')
+    lines = file.read().split('\n')
+    lines = [x for x in lines if x and not x.startswith('#')]
+    lines = [x.rstrip().lstrip() for x in lines] # get rid of fringe whitespaces
+    module_defs = []
+    for line in lines:
+        if line.startswith('['): # This marks the start of a new block
+            module_defs.append({})
+            module_defs[-1]['type'] = line[1:-1].rstrip()
+            if module_defs[-1]['type'] == 'convolutional':
+                module_defs[-1]['batch_normalize'] = 0
+        else:
+            key, value = line.split("=")
+            value = value.strip()
+            module_defs[-1][key.rstrip()] = value.strip()
+
+    return module_defs
 
 def create_modules(module_defs):
     """
@@ -92,7 +246,7 @@ class YOLOLayer(nn.Module):
 
         self.anchors = anchors
         self.nA = nA  # number of anchors (3)
-        self.nC = nC  # number of classes (80)
+        self.nC = nC  # number of classes (20)
         self.bbox_attrs = 5 + nC
         self.img_dim = img_dim  # from hyperparams in cfg file, NOT from parser
 
@@ -117,7 +271,7 @@ class YOLOLayer(nn.Module):
 
     def forward(self, p, targets=None, batch_report=False, var=None):
         FT = torch.cuda.FloatTensor if p.is_cuda else torch.FloatTensor
-
+        # p为卷积输出，假定(16,75,13,13), 用最小的feature map配
         bs = p.shape[0]  # batch size
         nG = p.shape[2]  # number of grid points
         stride = self.img_dim / nG
@@ -388,3 +542,10 @@ def save_weights(self, path, cutoff=-1):
             conv_layer.weight.data.cpu().numpy().tofile(fp)
 
     fp.close()
+    
+    
+if __name__ == '__main__':
+    config_path = 'yolov3.cfg'
+    model = Darknet(config_path)
+    print(model)
+    

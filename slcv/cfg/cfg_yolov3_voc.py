@@ -30,7 +30,7 @@ std = [0.2023, 0.1994, 0.2010]
 #num_classes = 10
 #input_size = 32   # 图片传入网络的size
 input_layers = 3  # 图片传入网络的层数
-batch_size = 8   # yolo源码16
+batch_size = 4   # yolo源码16
 
 """--------------------optimizer-------------------------------
 用于优化器相关参数，如下是相关必选参数，不可修改变量名
@@ -47,6 +47,7 @@ epoch_num/
 epoch_num = 1   #源码为30
 checkpoints_dir = '../checkpoints'
 working_dir = '../checkpoints/working'
+gpus = range(1)  # 1表示单GPU，>=2表示DataParallel
 data_workers = 2  # data workers per gpu
 workflow = [('train', 1), ('val', 1)]
 resume_from = None

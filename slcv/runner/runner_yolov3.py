@@ -153,8 +153,8 @@ class Runner():
     
     def train(self):
         torch.cuda.empty_cache()
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        if torch.cuda.device_count() > 1:
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # 检查是cpu还是gpu训练
+        if torch.cuda.device_count() > 1 and len(self.cfg.gpus) > 1:  # 自定义是否多GPU并行训练
             self.model = torch.nn.DataParallel(self.model)
         self.model.to(device)
 #        if torch.cuda.is_available():
@@ -205,7 +205,7 @@ class Runner():
 #                 self.outputs = dict(loss=loss, log_vars=log_vars, num_samples=imgs.size(0))
                  self.outputs = dict(loss=loss) # yolov3修改，目的是loss传进optimizer_hook做backward计算(也避免修改其他文件)
                  
-                 self.log_buffer.update(self.outputs['log_vars'])
+#                 self.log_buffer.update(self.outputs['log_vars'])
                  self.call_hook('after_train_iter')
                  
                  self._iter += 1
