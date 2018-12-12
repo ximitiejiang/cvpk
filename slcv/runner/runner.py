@@ -6,7 +6,7 @@ Created on Sun Dec  2 17:36:46 2018
 @author: ubuntu
 """
 import torch
-import sys
+import sys, os, time
 from collections import OrderedDict
 from slcv.hook.hook import Hook
 from slcv.hook.optimizer_hook import OptimizerHook
@@ -14,6 +14,7 @@ from slcv.hook.visdom_logger_hook import VisdomLoggerHook
 from slcv.hook.timer_hook import TimerHook
 from slcv.hook.text_hook import TextHook
 from ..hook.log_buffer import LogBuffer
+from slcv.utils.checkpoint import load_checkpoint
 
 def accuracy(output, target, topk=(1, )):
     """Computes the precision@k for the specified values of k"""
@@ -147,8 +148,53 @@ class Runner():
         for hook in self._hooks:
             getattr(hook, fn_name)(self)
     
-    def save_checkpoint(self):
-        pass
+    def load_checkpoint(self, filename, map_location='cpu', strict=False):
+        """加载checkpoint
+        输入：filename, map_location(跟torch.load函数一样)，strict(是否允许不同参数)
+        返回dict
+        """
+        if not os.path.isfile(filename):
+            raise IOError('{} is not a checkpoint file'.format(filename))
+        # 加载checkpoint
+        checkpoint = torch.load(filename, map_location = map_location)
+        
+        if isinstance(checkpoint, OrderedDict):
+            state_dict = checkpoint
+        elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+            state_dict = checkpoint['state_dict']
+        else:
+            raise RuntimeError(
+                'No state_dict found in checkpoint file {}'.format(filename))
+            
+        return load_checkpoint(self.model, filename, map_location, strict)
+    
+    def save_checkpoint(self, out_dir, filename, save_optimizer=True, meta=None):
+        """保存checkpoint到文件
+        输入：meta 保存version和time, dict, 默认是{'epoch':epoch, 'iter':iter}
+              model
+        输出：OrderedDict
+        """
+        if meta is None:
+            meta = dict(epoch=self._epoch +1, iter = self._iter)
+        else:
+            meta.update(epoch=self._epoch +1, 
+                        iter = self._iter,
+                        time = time.time())
+        # 判断是否保存optimizer
+        filepath = os.path.join(out_dir, filename)
+        optimizer = self.optimizer if save_optimizer else None
+        # 从GPU拷贝state_dict到cpu
+        state_dict_cpu = OrderedDict()
+        for key, val in self.model.state_dict.items():
+            state_dict_cpu[key] = val.cpu()
+        # 生成checkpoint    
+        checkpoint ={'meta': meta,
+                     'state_dict': state_dict_cpu}
+        if optimizer is not None:
+            checkpoint['optimizer'] = optimizer.state_dict()
+        # 保存checkpoint
+        torch.save(checkpoint, filepath)
+        
     
     def train(self):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -191,6 +237,9 @@ class Runner():
         self.call_hook('after_run')
         
     def val(self):
+        pass
+    
+    def resume(self):
         pass
     
     def test(self):

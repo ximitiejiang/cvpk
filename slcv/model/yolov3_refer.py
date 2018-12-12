@@ -77,18 +77,22 @@ def build_targets(pred_boxes, pred_conf, pred_cls, target, anchor_wh, nA, nC, nG
         nTb = nT[b]  # number of targets
         if nTb == 0:
             continue
-        t = target[b]
+        t = target[b]  # t为每张图的所有target (50,5)
         if batch_report:
             FN[b, :nTb] = 1
 
         # Convert to position relative to box
-        TC[b, :nTb], gx, gy, gw, gh = t[:, 0].long(), t[:, 1] * nG, t[:, 2] * nG, t[:, 3] * nG, t[:, 4] * nG
+        TC[b, :nTb], gx, gy, gw, gh = t[:, 0].long(), \
+                                      t[:, 1] * nG, \
+                                      t[:, 2] * nG, \
+                                      t[:, 3] * nG, \
+                                      t[:, 4] * nG
         # Get grid box indices and prevent overflows (i.e. 13.01 on 13 anchors)
         gi = torch.clamp(gx.long(), min=0, max=nG - 1)
         gj = torch.clamp(gy.long(), min=0, max=nG - 1)
 
         # iou of targets-anchors (using wh only)
-        box1 = t[:, 3:5] * nG
+        box1 = t[:, 3:5] * nG   # 取出该张图
         # box2 = anchor_grid_wh[:, gj, gi]
         box2 = anchor_wh.unsqueeze(1).repeat(1, nTb, 1)
         inter_area = torch.min(box1, box2).prod(2)

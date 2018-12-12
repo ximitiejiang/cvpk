@@ -26,15 +26,16 @@ import math
 
 def bbox_iou(box1, box2, x1y1x2y2=True):
     """
+    计算两个bbox的IOU：输入可以是(xmin,ymin,xmax,ymax)，也可以是(x,y,w,h)
     Returns the IoU of two bounding boxes
     """
-    if not x1y1x2y2:
+    if not x1y1x2y2:  # x, y, w, h
         # Transform from center and width to exact coordinates
         b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
         b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
         b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
         b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
-    else:
+    else:  # x1,y1,x2,y2
         # Get the coordinates of bounding boxes
         b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
         b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
@@ -59,6 +60,11 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
 def build_targets(
     pred_boxes, pred_conf, pred_cls, target, anchors, num_anchors, num_classes, grid_size, ignore_thres, img_dim):
     """这是yolov3算法用来生成anchor box的子程序
+    pred_boxes: 经过变换后的预测值x,y,w,h (sigmoid(x)+grid_x, sigmoid(y)+grid_y, exp(w)*pw, exp(h)*ph)
+    pred_conf: 经过变换后的置信度confi (sigmoid(conf))
+    pred_cls: 经过变换后的置信度cls (sigmoid(cls))
+    target: 即标签labels (16,50,5)，5个标签[cls, x,y,w,h]，其中x,y归一化了，w,h为原数据
+    anchors: 为缩放后的anchor,即anchors/strides
     """
     nB = target.size(0)
     nA = num_anchors
@@ -75,16 +81,16 @@ def build_targets(
 
     nGT = 0
     nCorrect = 0
-    for b in range(nB):
-        for t in range(target.shape[1]):
+    for b in range(nB):  # 取出每张图
+        for t in range(target.shape[1]):  # 取出每一个bbox label (每张图50个)
             if target[b, t].sum() == 0:
                 continue
             nGT += 1
             # Convert to position relative to box
-            gx = target[b, t, 1] * nG
-            gy = target[b, t, 2] * nG
-            gw = target[b, t, 3] * nG
-            gh = target[b, t, 4] * nG
+            gx = target[b, t, 1] * nG  # x * 13(或26或52)
+            gy = target[b, t, 2] * nG  # y
+            gw = target[b, t, 3] * nG  # w
+            gh = target[b, t, 4] * nG  # h
             # Get grid box indices
             gi = int(gx)
             gj = int(gy)
@@ -93,8 +99,7 @@ def build_targets(
             # Get shape of anchor box
             anchor_shapes = torch.FloatTensor(np.concatenate((np.zeros((len(anchors), 2)), np.array(anchors)), 1))
             # Calculate iou between gt and anchor shapes
-            
-            """子程序bbox_iou()用于
+            """子程序bbox_iou()用于计算两个单独bbox的IOU
             """
             anch_ious = bbox_iou(gt_box, anchor_shapes)
             # Where the overlap is larger than threshold set mask to zero (ignore)
@@ -248,7 +253,12 @@ class YOLOLayer(nn.Module):
         prediction = x.view(nB, nA, self.bbox_attrs, nG, nG).permute(0, 1, 3, 4, 2).contiguous()
 
         # Get outputs分别获得预测的6大部分输出：x,y,w,h,confidence, classes
-        x = torch.sigmoid(prediction[..., 0])  # Center x
+        # 通过线性回归求取x,y,w,h
+        # tx = sigmoid(x) + offset_x
+        # ty = sigmoid(y) + offset_y
+        # tw = exp(w) * pw
+        # th = exp(h) * ph
+        x = torch.sigmoid(prediction[..., 0])  # Center x (16, 3, 13, 13)
         y = torch.sigmoid(prediction[..., 1])  # Center y
         
         w = prediction[..., 2]  # Width
@@ -256,7 +266,7 @@ class YOLOLayer(nn.Module):
         pred_conf = torch.sigmoid(prediction[..., 4])  # Conf
         pred_cls = torch.sigmoid(prediction[..., 5:])  # Cls pred.
 
-        # Calculate offsets for each grid
+        # Calculate offsets for each grid (13, 13) -> (1,1,13,13)
         grid_x = torch.arange(nG).repeat(nG, 1).view([1, 1, nG, nG]).type(FloatTensor)
         grid_y = torch.arange(nG).repeat(nG, 1).t().view([1, 1, nG, nG]).type(FloatTensor)
         scaled_anchors = FloatTensor([(a_w / stride, a_h / stride) for a_w, a_h in self.anchors])
@@ -265,7 +275,7 @@ class YOLOLayer(nn.Module):
 
         # Add offset and scale with anchors
         pred_boxes = FloatTensor(prediction[..., :4].shape)
-        pred_boxes[..., 0] = x.data + grid_x
+        pred_boxes[..., 0] = x.data + grid_x  
         pred_boxes[..., 1] = y.data + grid_y
         pred_boxes[..., 2] = torch.exp(w.data) * anchor_w
         pred_boxes[..., 3] = torch.exp(h.data) * anchor_h

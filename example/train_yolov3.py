@@ -7,15 +7,18 @@ Created on Thu Dec  6 14:58:50 2018
 
 基于slcv新框架runner搭建yolov3
 
-源码参考：https://github.com/eriklindernoren/PyTorch-YOLOv3
-源码基于coco_2014数据集，本部分基于voc_s2007进行训练
+初始源码参考：https://github.com/eriklindernoren/PyTorch-YOLOv3
+源码基于coco_2014数据集，但该源码在内部逻辑有重大问题，build_target()函数中x,y,w,h跟x1,y1,x2,y2混淆
+
+进一步源码参考：https://github.com/ultralytics/yolov3
+源码也基于coco数据集
 
 """
 import torch
 from torch.utils.data import DataLoader
 from slcv.runner.runner_yolov3 import Runner
 
-from slcv.model.yolov3 import Darknet
+from slcv.model.yolov3_refer import Darknet  # 换yolo模型
 from slcv.utils.init import weights_init_normal
 from slcv.dataset.voc_yolov3 import VOCDataset, voc_classes
 from slcv.cfg.config import Config
@@ -36,7 +39,9 @@ model_cfg_path = os.path.abspath(cfg.model_cfg)
 #os.path.dirname(__file__)  + model_dir
 model = Darknet(model_cfg_path, img_size=416)
 model.apply(weights_init_normal)
-optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
+#optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
+
+optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.lr0, momentum=.9)
 
 # ----------------------3. 训练---------------------------------------
 runner = Runner(trainloader, model, optimizer, cfg) 

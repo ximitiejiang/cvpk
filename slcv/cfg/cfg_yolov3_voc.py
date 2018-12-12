@@ -8,7 +8,7 @@ Created on Mon Dec  3 11:40:50 2018
 这个config文件模板参考mmcv
 """
 
-import sys
+import sys, os
 
 """--------------------model-------------------------------
 用于定义模型相关参数，如下是相关必选参数，不可修改变量名
@@ -16,6 +16,8 @@ model
 """
 model_name = 'darknet'
 model_cfg = '../slcv/model/yolov3.cfg'
+weights_path = 'weights_of_models'
+weights_file_name = 'darknet53.conv.74'
 
 """--------------------datasets-------------------------------
 用于定义数据集相关参数，如下是相关必选参数，不可修改变量名
@@ -27,7 +29,7 @@ data_root = '/home/ubuntu/MyDatasets/voc/VOCdevkit'     # for ubuntu
 
 mean = [0.4914, 0.4822, 0.4465]
 std = [0.2023, 0.1994, 0.2010]
-#num_classes = 10
+num_classes = 20    # voc classes
 #input_size = 32   # 图片传入网络的size
 input_layers = 3  # 图片传入网络的层数
 batch_size = 4   # yolo源码16
@@ -39,6 +41,7 @@ optimizer
 也可定义为对象optimizer = torch.optim.SGD()
 """
 optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=5e-4)
+lr0=0.001
 
 """--------------------runtime-------------------------------
 运行时相关参数，如下是相关必选参数，不可修改变量名
@@ -52,6 +55,10 @@ data_workers = 2  # data workers per gpu
 workflow = [('train', 1), ('val', 1)]
 resume_from = None
 load_from = None
+
+report = True # 表示yolo模型是否在每个batch增加输出TP/FP/FN/P/R，可以不增加提高速度
+freeze = True # 表示沿用darknet53.74 layers for 1st epoche
+var = 0       # 表示yolo模型test variable
 
 """--------------------hooks config-------------------------------
 用于所有hooks的config，如下是相关比选hook config，不可修改变量名

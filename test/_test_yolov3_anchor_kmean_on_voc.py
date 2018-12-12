@@ -72,6 +72,8 @@ def translate_boxes(boxes):
 
 def kmeans(boxes, k, dist=np.median):
     """
+    输入：所有bbox [[w1,h1], [w2,h2],...]
+        k, 聚类种类数
     Calculates k-means clustering with the Intersection over Union (IoU) metric.
     :param boxes: numpy array of shape (r, 2), where r is the number of rows
     :param k: number of clusters
@@ -80,24 +82,24 @@ def kmeans(boxes, k, dist=np.median):
     """
     rows = boxes.shape[0]  # bbox的个数
 
-    distances = np.empty((rows, k))  
-    last_clusters = np.zeros((rows,))
+    distances = np.empty((rows, k))  # (rows, 9)
+    last_clusters = np.zeros((rows,))  # (rows, )
 
     np.random.seed()
 
     # the Forgy method will fail if the whole array contains the same rows
-    clusters = boxes[np.random.choice(rows, k, replace=False)]  # 随机出9个anchors作为一组clusters
+    clusters = boxes[np.random.choice(rows, k, replace=False)]  # 随机从原始bbox中抽取9个anchor (w, h)
 
     while True:
-        for row in range(rows):
+        for row in range(rows):  # 取出每个bbox，得到每个bbox对应一行的9个1-iou
             distances[row] = 1 - iou(boxes[row], clusters)  # 用所有bbox跟该组clusters求1-IOU作为判定标准
-
+        # 取最小1-iou的位置
         nearest_clusters = np.argmin(distances, axis=1)     # 取1-IOU最小的，也就是IOU最大的clusters
 
         if (last_clusters == nearest_clusters).all():
             break
 
-        for cluster in range(k):
+        for cluster in range(k): # ???
             clusters[cluster] = dist(boxes[nearest_clusters == cluster], axis=0)
 
         last_clusters = nearest_clusters
@@ -133,7 +135,7 @@ class TestVoc2007(TestCase):
         np.testing.assert_almost_equal(percentage, 0.61, decimal=2)
 
     def test_kmeans_9(self):
-        dataset = self.__load_dataset()  # 返回voc2007所有图片的bbox数据
+        dataset = self.__load_dataset()  # 返回voc2007所有图片的bbox数据 (30638, 2) (w,h)
 
         out = kmeans(dataset, 9)
         percentage = avg_iou(dataset, out)
