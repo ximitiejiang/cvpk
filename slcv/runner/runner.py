@@ -14,7 +14,6 @@ from slcv.hook.visdom_logger_hook import VisdomLoggerHook
 from slcv.hook.timer_hook import TimerHook
 from slcv.hook.text_hook import TextHook
 from ..hook.log_buffer import LogBuffer
-from slcv.utils.checkpoint import load_checkpoint
 
 def accuracy(output, target, topk=(1, )):
     """Computes the precision@k for the specified values of k"""
@@ -147,32 +146,89 @@ class Runner():
         """批量调用Hook类中所有hook实例的对应方法"""
         for hook in self._hooks:
             getattr(hook, fn_name)(self)
+            
+    def load_state_dict(self, module, state_dict, strict=False):
+        """Load state_dict to a module.
+        """
+        unexpected_keys = [] # 存放额外多出来的key
+        
+        own_state = module.state_dict()
+        for name, param in state_dict.items():
+            if name not in own_state:
+                unexpected_keys.append(name)
+                continue
+            if isinstance(param, torch.nn.Parameter):
+                # backwards compatibility for serialized parameters
+                param = param.data
     
+            try:
+                own_state[name].copy_(param)  # 拷贝checkpoint的参数到model中
+            except Exception:
+                raise RuntimeError('While copying the parameter named {}, '
+                                   'whose dimensions in the model are {} and '
+                                   'whose dimensions in the checkpoint are {}.'
+                                   .format(name, own_state[name].size(),
+                                           param.size()))
+        # 存放少了的key
+        missing_keys = set(own_state.keys()) - set(state_dict.keys())
+    
+        err_msg = []
+        if unexpected_keys:
+            err_msg.append('unexpected key in source state_dict: {}\n'.format(
+                ', '.join(unexpected_keys)))
+        if missing_keys:
+            err_msg.append('missing keys in source state_dict: {}\n'.format(
+                ', '.join(missing_keys)))
+        err_msg = '\n'.join(err_msg)
+        if err_msg:
+            if strict:
+                raise RuntimeError(err_msg)
+            else:
+                print(err_msg)
+            
     def load_checkpoint(self, filename, map_location='cpu', strict=False):
-        """加载checkpoint
-        输入：filename, map_location(跟torch.load函数一样)，strict(是否允许不同参数)
+        """加载checkpoint，把state_dict传递给model，并返回checkpoint字典(可用于提取checkpoint中其他信息)
+        输入：filename, 
+        map_location: 可以选择''
+        strict(是否允许不同参数)
         返回dict
+        torch.load()参考：https://pytorch.org/docs/stable/torch.html
+        to same cpu or GPU: torch.load('gen_500000.pkl')
+        to->cpu: torch.load('gen.pkl', map_location=lambda storage, loc: storage)
+        cpu->GPU(1): torch.load('gen.pkl', map_location=lambda storage, loc: storage.cuda(1))
+        GPU0->GPU1: torch.load('gen.pkl', map_location={'cuda:0':'cuda:1'})
         """
         if not os.path.isfile(filename):
             raise IOError('{} is not a checkpoint file'.format(filename))
         # 加载checkpoint
+        print('loading checkpoint file: {}'.format(filename))
         checkpoint = torch.load(filename, map_location = map_location)
-        
-        if isinstance(checkpoint, OrderedDict):
+        # 从checkpoint获得state_dict
+        if isinstance(checkpoint, OrderedDict): # 如果直接存的是OrderedDict则直接读取
             state_dict = checkpoint
-        elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+        elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint: # 如果存的是dict则读取state_dict
             state_dict = checkpoint['state_dict']
         else:
             raise RuntimeError(
                 'No state_dict found in checkpoint file {}'.format(filename))
-            
-        return load_checkpoint(self.model, filename, map_location, strict)
+        # 获得state_dict 
+        if list(state_dict.keys())[0].startswith('module.'):
+            state_dict = {k[7:]: v for k, v in checkpoint['state_dict'].items()}
+        # 如果是data paralle model，则需要提取module作为model
+        if hasattr(self.model, 'module'):
+            self.load_state_dict(self.model.module, state_dict)
+        # 如果是普通模型，则直接提取model即可
+        else:
+            self.load_state_dict(self.model, state_dict)           
+        return checkpoint
     
     def save_checkpoint(self, out_dir, filename, save_optimizer=True, meta=None):
         """保存checkpoint到文件
         输入：meta 保存version和time, dict, 默认是{'epoch':epoch, 'iter':iter}
-              model
-        输出：OrderedDict
+              out_dir保存地址
+              filename保存文件名
+              save_optimizer是否保存优化器
+        输出：OrderedDict {'meta':dict, 'state_dict':OrderedDict, 'optimizer':dict}
         """
         if meta is None:
             meta = dict(epoch=self._epoch +1, iter = self._iter)
@@ -181,11 +237,12 @@ class Runner():
                         iter = self._iter,
                         time = time.time())
         # 判断是否保存optimizer
-        filepath = os.path.join(out_dir, filename)
+        appendname = '_epoch_{}.pth'
+        filepath = os.path.join(out_dir, filename + appendname.format(self._epoch+1))
         optimizer = self.optimizer if save_optimizer else None
         # 从GPU拷贝state_dict到cpu
         state_dict_cpu = OrderedDict()
-        for key, val in self.model.state_dict.items():
+        for key, val in self.model.state_dict().items():
             state_dict_cpu[key] = val.cpu()
         # 生成checkpoint    
         checkpoint ={'meta': meta,
@@ -197,50 +254,93 @@ class Runner():
         
     
     def train(self):
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        if torch.cuda.device_count() > 1:
+        # 定义设备
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # cuda模式或cpu模式
+        if len(self.cfg.gpus) == 0:    # cpu模式
+            device = torch.device("cpu")
+        # 定义模型
+        if torch.cuda.device_count() > 1 and len(self.cfg.gpus) > 1:  # 多GPU并行模式
             self.model = torch.nn.DataParallel(self.model)
         self.model.to(device)
-#        if torch.cuda.is_available():
-#            self.model.cuda()
             
         self.model.train()
         
         self.call_hook('before_run')
-        for i in range(self.cfg.epoch_num):
+#        for i in range(self.cfg.epoch_num):
+        while self._epoch < self.cfg.epoch_num:  # 不用for循环是为了resume时兼容
             self.call_hook('before_train_epoch')
             
             for j, (imgs, labels) in enumerate(self.dataloader):
-                 self.call_hook('before_train_iter')
-                 if torch.cuda.is_available():
-                     imgs = imgs.to(device)
-                     labels = labels.to(device)
+                self.call_hook('before_train_iter')
+
+                imgs = imgs.float().to(device)  # 这里to(device)需要保证imgs为torch.float32类型
+                labels = labels.to(device)      # label为torch.int64
                  
-                 pred = self.model(imgs)
-                 # 复杂loss则通过loss function导入计算            
-                 loss = torch.nn.CrossEntropyLoss()(pred,labels)
+                pred = self.model(imgs)
+                # 复杂loss则通过loss function导入计算            
+                loss = torch.nn.CrossEntropyLoss()(pred,labels)
                  
-                 # outputs作为汇总变量，传入hooks
-                 acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))
-                 log_vars = OrderedDict()
-                 log_vars['loss'] = loss.item()
-                 log_vars['acc_top1'] = acc_top1.item()
-                 log_vars['acc_top5'] = acc_top5.item()
+                # outputs作为汇总变量，传入hooks
+                acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))
+                log_vars = OrderedDict()
+                log_vars['loss'] = loss.item()
+                log_vars['acc_top1'] = acc_top1.item()
+                log_vars['acc_top5'] = acc_top5.item()
+                
+                # 更新2个主参数容器： 
+                self.outputs = dict(loss=loss, log_vars=log_vars, num_samples=imgs.size(0))
+                self.log_buffer.update(self.outputs['log_vars'])
+                self.call_hook('after_train_iter')
                  
-                 self.outputs = dict(loss=loss, log_vars=log_vars, num_samples=imgs.size(0))
-                 self.log_buffer.update(self.outputs['log_vars'])
-                 self.call_hook('after_train_iter')
-                 
-                 self._iter += 1
+                self._iter += 1
+            
+            # test save_checkpoint()
+            self.save_checkpoint(self.cfg.checkpoints_dir, 'yolov3', save_optimizer=True, meta=None)
             self.call_hook('after_train_epoch')
             self._epoch += 1
         self.call_hook('after_run')
-        
-    def val(self):
-        pass
+
     
-    def resume(self):
-        pass
+    def resume(self, checkpoint, resume_optimizer=True, map_location='default'):
+        """恢复某个checkpoint：state_dict给model, 
+        输入：map_location，可以指定加载到cpu还是GPU
+        在resume时需要确保cfg中指定的cpu/gpu方式跟resume()中map_location定义是一致的
+        """
+        if map_location == 'default':  # 默认是第0个GPU
+            device = torch.cuda.current_device()  # what is current_device?
+            checkpoint = self.load_checkpoint(checkpoint, map_location = lambda storage, loc:storage.cuda(device))
+        else:
+            checkpoint = self.load_checkpoint(checkpoint, map_location=map_location)
+        
+        self._epoch = checkpoint['meta']['epoch']
+        self._iter = checkpoint['meta']['iter']
+        if 'optimizer' in checkpoint and resume_optimizer:
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+                        
+    def val(self):
+        """验证模块：待调试
+        """
+        self.model.eval()
+        self.data_loader = data_loader
+        self.call_hook('before_val_epoch')
+
+        for i, data_batch in enumerate(data_loader):
+            self._inner_iter = i
+            self.call_hook('before_val_iter')
+            with torch.no_grad():
+                outputs = self.batch_processor(
+                    self.model, data_batch, train_mode=False, **kwargs)
+            if not isinstance(outputs, dict):
+                raise TypeError('batch_processor() must return a dict')
+            if 'log_vars' in outputs:
+                self.log_buffer.update(outputs['log_vars'],
+                                       outputs['num_samples'])
+            self.outputs = outputs
+            self.call_hook('after_val_iter')
+
+        self.call_hook('after_val_epoch')
     
     def test(self):
+        """测试模块
+        """
         pass

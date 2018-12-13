@@ -73,20 +73,20 @@ def build_targets(pred_boxes, pred_conf, pred_cls, target, anchor_wh, nA, nC, nG
     FN = torch.ByteTensor(nB, max(nT)).fill_(0)
     TC = torch.ShortTensor(nB, max(nT)).fill_(-1)  # target category
 
-    for b in range(nB):
+    for b in range(nB):  # 取每张图
         nTb = nT[b]  # number of targets
-        if nTb == 0:
+        if nTb == 0: # 如果该图没有bbox则进入下一轮循环
             continue
-        t = target[b]  # t为每张图的所有target (50,5)
+        t = target[b]  # target (16,50,5) -> t (50,5)
         if batch_report:
             FN[b, :nTb] = 1
 
         # Convert to position relative to box
         TC[b, :nTb], gx, gy, gw, gh = t[:, 0].long(), \
-                                      t[:, 1] * nG, \
-                                      t[:, 2] * nG, \
-                                      t[:, 3] * nG, \
-                                      t[:, 4] * nG
+                                      t[:, 1] * nG, \    # label x * nG
+                                      t[:, 2] * nG, \    # label y * nG
+                                      t[:, 3] * nG, \    # label w * nG
+                                      t[:, 4] * nG       # label h * nG
         # Get grid box indices and prevent overflows (i.e. 13.01 on 13 anchors)
         gi = torch.clamp(gx.long(), min=0, max=nG - 1)
         gj = torch.clamp(gy.long(), min=0, max=nG - 1)
@@ -318,10 +318,10 @@ class YOLOLayer(nn.Module):
             if batch_report:
                 gx = self.grid_x[:, :, :nG, :nG]
                 gy = self.grid_y[:, :, :nG, :nG]
-                pred_boxes[..., 0] = x.data + gx - width / 2
-                pred_boxes[..., 1] = y.data + gy - height / 2
-                pred_boxes[..., 2] = x.data + gx + width / 2
-                pred_boxes[..., 3] = y.data + gy + height / 2
+                pred_boxes[..., 0] = x.data + gx - width / 2    # xc -w/2 = xmin
+                pred_boxes[..., 1] = y.data + gy - height / 2   # yc -h/2 = ymin
+                pred_boxes[..., 2] = x.data + gx + width / 2    # ??        = xmax
+                pred_boxes[..., 3] = y.data + gy + height / 2   # ??        = ymax
 
             tx, ty, tw, th, mask, tcls, TP, FP, FN, TC = \
                 build_targets(pred_boxes, pred_conf, pred_cls, targets, self.scaled_anchors, self.nA, self.nC, nG,

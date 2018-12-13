@@ -47,11 +47,12 @@ epoch_num/
 epoch_num = 6
 checkpoints_dir = '../checkpoints'
 working_dir = '../checkpoints/working'   # 在checkpoints目录下添加一个输出工作文件夹
-gpus = range(2)   # 1表示单GPU，>=2表示DataParallel
+gpus = range(1)   # 1表示单GPU，>=2表示DataParallel, 0表示cpu
 dist_params = dict(backend='nccl')
 data_workers = 2  # data workers per gpu
 workflow = [('train', 1), ('val', 1)]
-resume_from = None
+resume_from = '../checkpoints/yolov3_epoch_3.pth'
+#resume_from = None
 load_from = None
 
 """--------------------hooks config-------------------------------
