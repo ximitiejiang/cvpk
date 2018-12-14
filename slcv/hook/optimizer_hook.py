@@ -16,7 +16,7 @@ class OptimizerHook(Hook):
     def __init__(self, optimizer_config):
         self.grad_clip = optimizer_config['grad_clip']
         
-    def write_txt(results, file_name='test', type='a+'):
+    def write_txt(self,runner,results, file_name='record', type='a+'):
         """用于写入一个txt文件，默认路径在checkpoints文件夹
         写入模式：a+ 自由读写，扩展模式，文件没有就创建
         写入模式：w+ 自由读写，覆盖模式
@@ -26,7 +26,8 @@ class OptimizerHook(Hook):
             directory = '/home/ubuntu/suliang_git/slcv/checkpoints'   # for ubuntu 
         else:                     
             directory = '/Users/suliang/slcv/checkpoints/'            # for mac os    
-        file_path = os.path.join(directory, file_name)        
+        
+        file_path = os.path.join(directory, file_name +'_epoch_{}'.format(runner._epoch))        
         with open(file_path, type) as f:  # 以结尾写入的方式打开，只有'a'和'at'两种模式的指针是在文件末尾
             print(results, file = f)
     

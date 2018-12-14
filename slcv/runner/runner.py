@@ -186,7 +186,7 @@ class Runner():
             else:
                 print(err_msg)
             
-    def load_checkpoint(self, filename, map_location='cpu', strict=False):
+    def load_checkpoint(self, filename, map_location=None, strict=False):
         """加载checkpoint，把state_dict传递给model，并返回checkpoint字典(可用于提取checkpoint中其他信息)
         输入：filename, 
         map_location: 可以选择''
@@ -203,7 +203,7 @@ class Runner():
         # 加载checkpoint
         print('loading checkpoint file: {}'.format(filename))
         checkpoint = torch.load(filename, map_location = map_location)
-        # 从checkpoint获得state_dict
+        # ----------------从checkpoint获得state_dict-------------------
         if isinstance(checkpoint, OrderedDict): # 如果直接存的是OrderedDict则直接读取
             state_dict = checkpoint
         elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint: # 如果存的是dict则读取state_dict
@@ -211,14 +211,15 @@ class Runner():
         else:
             raise RuntimeError(
                 'No state_dict found in checkpoint file {}'.format(filename))
-        # 获得state_dict 
+        # 如果是data paralle model，则去掉module关键字(即从第7个字符开始)后得到state_dict
+        # 参考：https://www.ptorch.com/news/74.html
         if list(state_dict.keys())[0].startswith('module.'):
             state_dict = {k[7:]: v for k, v in checkpoint['state_dict'].items()}
-        # 如果是data paralle model，则需要提取module作为model
-        if hasattr(self.model, 'module'):
+            
+        # --------------把state_dict加载到模型中-------------------------
+        if hasattr(self.model, 'module'):  # 如果是data paralle model，则需要提取module再加载state_dict
             self.load_state_dict(self.model.module, state_dict)
-        # 如果是普通模型，则直接提取model即可
-        else:
+        else:  # 如果是普通模型，则直接用model加载state_dict
             self.load_state_dict(self.model, state_dict)           
         return checkpoint
     
@@ -244,6 +245,7 @@ class Runner():
         state_dict_cpu = OrderedDict()
         for key, val in self.model.state_dict().items():
             state_dict_cpu[key] = val.cpu()
+#            state_dict_cpu[key] = val
         # 生成checkpoint    
         checkpoint ={'meta': meta,
                      'state_dict': state_dict_cpu}
@@ -254,17 +256,13 @@ class Runner():
         
     
     def train(self):
-        # 定义设备
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # cuda模式或cpu模式
-        if len(self.cfg.gpus) == 0:    # cpu模式
-            device = torch.device("cpu")
-        # 定义模型
-        if torch.cuda.device_count() > 1 and len(self.cfg.gpus) > 1:  # 多GPU并行模式
-            self.model = torch.nn.DataParallel(self.model)
-        self.model.to(device)
-            
-        self.model.train()
+#        # 定义设备
+#        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # cuda模式或cpu模式
+#        if len(self.cfg.gpus) == 0:    # cpu模式
+#            device = torch.device("cpu")
+#        self.model.to(device)
         
+        self.model.train()        
         self.call_hook('before_run')
 #        for i in range(self.cfg.epoch_num):
         while self._epoch < self.cfg.epoch_num:  # 不用for循环是为了resume时兼容
@@ -302,15 +300,17 @@ class Runner():
 
     
     def resume(self, checkpoint, resume_optimizer=True, map_location='default'):
-        """恢复某个checkpoint：state_dict给model, 
-        输入：map_location，可以指定加载到cpu还是GPU
+        """恢复某个checkpoint：state_dict给model
+        输入：map_location，默认加载到GPU(device 0)，也可加载到cpu
         在resume时需要确保cfg中指定的cpu/gpu方式跟resume()中map_location定义是一致的
         """
         if map_location == 'default':  # 默认是第0个GPU
-            device = torch.cuda.current_device()  # what is current_device?
-            checkpoint = self.load_checkpoint(checkpoint, map_location = lambda storage, loc:storage.cuda(device))
+            device_id = torch.cuda.current_device()  # 默认加载到第0个GPU
+            checkpoint = self.load_checkpoint(checkpoint, 
+                                              map_location = lambda storage, loc: storage.cuda(device_id))
         else:
-            checkpoint = self.load_checkpoint(checkpoint, map_location=map_location)
+            checkpoint = self.load_checkpoint(checkpoint, 
+                                              map_location=map_location)
         
         self._epoch = checkpoint['meta']['epoch']
         self._iter = checkpoint['meta']['iter']
