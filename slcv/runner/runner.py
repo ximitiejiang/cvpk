@@ -6,6 +6,7 @@ Created on Sun Dec  2 17:36:46 2018
 @author: ubuntu
 """
 import torch
+import torch.nn.functional as F
 import sys, os, time
 from collections import OrderedDict
 from slcv.hook.hook import Hook
@@ -13,6 +14,7 @@ from slcv.hook.optimizer_hook import OptimizerHook
 from slcv.hook.visdom_logger_hook import VisdomLoggerHook
 from slcv.hook.timer_hook import TimerHook
 from slcv.hook.text_hook import TextHook
+from slcv.hook.checkpoint_hook import CheckpointHook
 from ..hook.log_buffer import LogBuffer
 
 def accuracy(output, target, topk=(1, )):
@@ -124,7 +126,8 @@ class Runner():
     def register_hooks(self, 
                        optimizer_config,
                        log_config=None,
-                       text_config=None):
+                       text_config=None,
+                       checkpoint_config=None):
         """注册hooks, 默认hooks包括
         OptimizerHook(带配置文件), 
         TimerHook
@@ -133,13 +136,18 @@ class Runner():
         iter_time_hook(带配置文件), 
         logger_hook(带配置文件)
         """
+        # ---------------必选hook-------------------
+        if optimizer_config is None:
+            raise ValueError('no optimizer_config found!')
         self.register(OptimizerHook, optimizer_config)
         self.register(TimerHook)
-        
+        # ---------------可选hook---------------------
         if log_config is not None:
             self.register(VisdomLoggerHook, log_config)
         if text_config is not None:
             self.register(TextHook, text_config)
+        if checkpoint_config is not None:
+            self.register(CheckpointHook, checkpoint_config)
         
     
     def call_hook(self, fn_name):
@@ -228,7 +236,9 @@ class Runner():
         输入：meta 保存version和time, dict, 默认是{'epoch':epoch, 'iter':iter}
               out_dir保存地址
               filename保存文件名
-              save_optimizer是否保存优化器
+              save_optimizer是否保存优化器        runner.save_checkpoint(
+            self.out_dir, runner.cfg.model_name, save_optimizer=self.save_optimizer, **self.args)
+
         输出：OrderedDict {'meta':dict, 'state_dict':OrderedDict, 'optimizer':dict}
         """
         if meta is None:
@@ -271,12 +281,13 @@ class Runner():
             for j, (imgs, labels) in enumerate(self.dataloader):
                 self.call_hook('before_train_iter')
 
-                imgs = imgs.float().to(device)  # 这里to(device)需要保证imgs为torch.float32类型
-                labels = labels.to(device)      # label为torch.int64
+                imgs = imgs.float().cuda()  # 这里to(device)需要保证imgs为torch.float32类型
+                labels = labels.cuda()      # label为torch.int64
                  
                 pred = self.model(imgs)
                 # 复杂loss则通过loss function导入计算            
                 loss = torch.nn.CrossEntropyLoss()(pred,labels)
+#                loss = F.cross_entropy(pred, labels)
                  
                 # outputs作为汇总变量，传入hooks
                 acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))
@@ -292,8 +303,6 @@ class Runner():
                  
                 self._iter += 1
             
-            # test save_checkpoint()
-            self.save_checkpoint(self.cfg.checkpoints_dir, 'yolov3', save_optimizer=True, meta=None)
             self.call_hook('after_train_epoch')
             self._epoch += 1
         self.call_hook('after_run')
@@ -301,16 +310,19 @@ class Runner():
     
     def resume(self, checkpoint, resume_optimizer=True, map_location='default'):
         """恢复某个checkpoint：state_dict给model
-        输入：map_location，默认加载到GPU(device 0)，也可加载到cpu
+        输入：map_location，可选 lambda storage,loc:storage   --此为cpu
+                            可选 lambda storage,loc:storage.cuda(0)  --此为GPU0
         在resume时需要确保cfg中指定的cpu/gpu方式跟resume()中map_location定义是一致的
         """
         if map_location == 'default':  # 默认是第0个GPU
             device_id = torch.cuda.current_device()  # 默认加载到第0个GPU
-            checkpoint = self.load_checkpoint(checkpoint, 
-                                              map_location = lambda storage, loc: storage.cuda(device_id))
+            checkpoint = self.load_checkpoint(
+                checkpoint, 
+                map_location = lambda storage, loc: storage.cuda(device_id))
         else:
-            checkpoint = self.load_checkpoint(checkpoint, 
-                                              map_location=map_location)
+            checkpoint = self.load_checkpoint(
+                checkpoint, 
+                map_location=map_location)
         
         self._epoch = checkpoint['meta']['epoch']
         self._iter = checkpoint['meta']['iter']
