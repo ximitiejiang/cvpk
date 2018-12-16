@@ -4,7 +4,7 @@ class CheckpointHook(Hook):
 
     def __init__(self, checkpoint_config):
         self.interval = checkpoint_config['interval']
-        if checkpoint_config['save_optimizer'] is None:
+        if not checkpoint_config['save_optimizer']:
             self.save_optimizer = True
         else:
             self.save_optimizer = checkpoint_config['save_optimizer']

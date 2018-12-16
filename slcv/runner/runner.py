@@ -6,16 +6,18 @@ Created on Sun Dec  2 17:36:46 2018
 @author: ubuntu
 """
 import torch
-import torch.nn.functional as F
 import sys, os, time
 from collections import OrderedDict
-from slcv.hook.hook import Hook
-from slcv.hook.optimizer_hook import OptimizerHook
-from slcv.hook.visdom_logger_hook import VisdomLoggerHook
-from slcv.hook.timer_hook import TimerHook
-from slcv.hook.text_hook import TextHook
-from slcv.hook.checkpoint_hook import CheckpointHook
+from ..hook.hook import Hook
+from ..hook.optimizer_hook import OptimizerHook
+from ..hook.timer_hook import TimerHook
+from ..hook.checkpoint_hook import CheckpointHook
 from ..hook.log_buffer import LogBuffer
+from ..hook.logger_text_hook import LoggerTextHook
+from ..hook.logger_visdom_hook import LoggerVisdomHook
+
+#from ..hook.text_hook import TextHook
+#from ..hook.visdom_logger_hook import VisdomLoggerHook
 
 def accuracy(output, target, topk=(1, )):
     """Computes the precision@k for the specified values of k"""
@@ -34,22 +36,22 @@ def accuracy(output, target, topk=(1, )):
         return res
 
 def obj_from_dict(info, parrent=None, default_args=None):
-    """基于字典初始化优化器对象.
+    """基于字典,父类, 参数，来生成一个对象
     Args:
-        info (dict): dict类型的对象参数,必须包含一个type字段，该type可以等于如下
-        的优化器名字('Adam', 'SGD', 'RMSprop'...等价于pytorch优化器描述)
-        module (:class:`module`): 目标object类型
-        default_args (dict, optional): 初始化object的默认参数
+        %info (dict)    dict类型的对象参数,需要type字段定义子类，该type可以等于如下
+                        的优化器名字('Adam', 'SGD', 'RMSprop'...等价于pytorch优化器描述)
+        % parrent       目标object父类
+        % default_args  初始化object的默认参数
     Returns:
         目标对象
     """
     assert isinstance(info, dict) and 'type' in info
     assert isinstance(default_args, dict) or default_args is None
     args = info.copy()
-    obj_type = args.pop('type') # 获得优化器的名称
+    obj_type = args.pop('type') # 获得子类的名称
     if isinstance(obj_type, str):
         if parrent is not None:
-            obj_type = getattr(parrent, obj_type)  # 获得优化器的对应子类
+            obj_type = getattr(parrent, obj_type)  # 基于父类和子类，创建子类对象
         else:
             obj_type = sys.modules[obj_type]
     elif not isinstance(obj_type, type):
@@ -81,6 +83,7 @@ class Runner():
         self._hooks = []
         self.log_buffer = LogBuffer()
         self._iter = 0
+        self._inner_iter = 0
         self._epoch = 0
     
     def model_name(self):
@@ -88,7 +91,7 @@ class Runner():
     
     
     def init_optimizer(self, optimizer):
-        """可以传入一个optimizer对象，也可以传入一个dict参数字典
+        """基于字典或者optimizer
         输入：optimizer 为module对象或者dict对象
         输出：optimizer 为module对象
         """
@@ -106,6 +109,9 @@ class Runner():
     def hooks(self):
         return self._hooks
     
+    def current_lr(self):
+        return [group['lr'] for group in self.optimizer.param_groups]
+    
     def register(self, sub_hook_class, args=None):
         """基于hook config创建hook对象，并加载入_hook变量
         输入：args, 为hook创建参数
@@ -121,14 +127,13 @@ class Runner():
             hook = sub_hook_class()      # 创建不带参hook
         else:
             raise TypeError('args should be hook obj or dict type')
-        self._hooks.insert(0, hook)      # 加入_hooks数组,最后一个hook放最前面，也最先执行
+        self._hooks.insert(0, hook)      # 加入_hooks数组,最后一个hook放最前面(方便写insert)
     
     def register_hooks(self, 
                        optimizer_config,
-                       log_config=None,
-                       text_config=None,
-                       checkpoint_config=None):
-        """注册hooks, 默认hooks包括
+                       checkpoint_config=None,
+                       logger_config=None):
+        """注册hooks(包括创建hook对象和加入_hooks队列), 默认hooks包括
         OptimizerHook(带配置文件), 
         TimerHook
         可选：
@@ -142,13 +147,24 @@ class Runner():
         self.register(OptimizerHook, optimizer_config)
         self.register(TimerHook)
         # ---------------可选hook---------------------
-        if log_config is not None:
-            self.register(VisdomLoggerHook, log_config)
-        if text_config is not None:
-            self.register(TextHook, text_config)
+#        if log_config is not None:
+#            self.register(VisdomLoggerHook, log_config)
+#        if text_config is not None:
+#            self.register(TextHook, text_config)
         if checkpoint_config is not None:
             self.register(CheckpointHook, checkpoint_config)
-        
+        if logger_config is not None:
+            interval = logger_config['interval']
+            ignore_last = logger_config['ignore_last']
+            new_config = dict(interval=interval, ignore_last=ignore_last)
+            logs = logger_config['logs']
+            for log in logs:
+                if log == 'LoggerTextHook':
+                    self.register(LoggerTextHook, new_config)
+                elif log == 'LoggerVisdomHook':
+                    self.register(LoggerVisdomHook, new_config)
+#                elif log == 'LoggerTensorboardXHook':
+#                    self.register(LoggerTensorboardXHook, new_config)
     
     def call_hook(self, fn_name):
         """批量调用Hook类中所有hook实例的对应方法"""
@@ -274,10 +290,9 @@ class Runner():
         
         self.model.train()        
         self.call_hook('before_run')
-#        for i in range(self.cfg.epoch_num):
         while self._epoch < self.cfg.epoch_num:  # 不用for循环是为了resume时兼容
-            self.call_hook('before_train_epoch')
-            
+            self._inner_iter = 0
+            self.call_hook('before_train_epoch')            
             for j, (imgs, labels) in enumerate(self.dataloader):
                 self.call_hook('before_train_iter')
 
@@ -298,12 +313,13 @@ class Runner():
                 
                 # 更新2个主参数容器： 
                 self.outputs = dict(loss=loss, log_vars=log_vars, num_samples=imgs.size(0))
-                self.log_buffer.update(self.outputs['log_vars'])
+                self.log_buffer.update(self.outputs['log_vars'])                                
                 self.call_hook('after_train_iter')
-                 
+                
+                self._inner_iter += 1
                 self._iter += 1
-            
             self.call_hook('after_train_epoch')
+            
             self._epoch += 1
         self.call_hook('after_run')
 

@@ -51,8 +51,8 @@ gpus = range(2)   # 1表示单GPU，>=2表示DataParallel, 0表示cpu
 dist_params = dict(backend='nccl')
 data_workers = 2  # data workers per gpu
 workflow = [('train', 1), ('val', 1)]
-resume_from = '../checkpoints/LeNet5_epoch_3.pth'
-#resume_from = None
+#resume_from = '../checkpoints/LeNet5_epoch_3.pth'
+resume_from = None
 load_from = None
 
 """--------------------hooks config-------------------------------
@@ -61,9 +61,11 @@ optimizer_config/log_config/
 """
 optimizer_config = dict(grad_clip=None)
 lr_config = dict(policy='step', step=2)
-text_config = dict(interval = 0)     # 输出iter数的间隔，0表示不输出
-checkpoint_config = dict(interval=1, 
-                         save_optimizer=True,
-                         out_dir=checkpoints_dir)  # -1表示不保存，n次/epoch
-log_config = dict(interval=20)        # 每隔n个interval显示，如果interval=0则每个epoch显示
-                                      # 可选择VisdomLoggerHook/TensorboardLoggerHook
+#text_config = dict(interval = 0)     # 输出iter数的间隔，0表示不输出
+checkpoint_config = dict(
+    interval=1, save_optimizer=True, out_dir=checkpoints_dir)  # -1表示不保存，n次/epoch
+logger_config = dict(
+    interval=200, ignore_last=False, logs = ['LoggerTextHook'])  # 可扩展logs的类名
+
+
+

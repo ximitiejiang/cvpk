@@ -7,6 +7,24 @@ class TimerHook(Hook):
     """记录各iter/epoch的运行时间: 可以在任何位置调用log()打印输出
     平均iter和平均epoch时间
     """
+    def before_run(self, runner):
+        self.total_start = time.time()
+        
+    def before_epoch(self, runner):
+        self.start = time.time()
+
+    def before_iter(self, runner):
+        # 每一个iter启动前，更新一个data花费时间?
+        runner.log_buffer.update({'data_time': time.time() - self.start})
+
+    def after_iter(self, runner):
+        # 每一个iter结束，更新一个iter花费时间
+        runner.log_buffer.update({'time': time.time() - self.start})
+        self.start = time.time()
+    
+    def after_run(self, runner):
+        print('total time: {:.3f}s'.format(time.time() - self.total_start))
+"""
     def __init__(self):
         self.epoch_time = []
         self.avg_epoch_time = 0
@@ -28,12 +46,16 @@ class TimerHook(Hook):
 #        runner.log_buffer.update({'data_time': time.time() - self.epoch_time})
 
     def after_train_iter(self, runner):
+        # 每个iter都把delta time更新进log_buffer
         runner.log_buffer.update({'iter_time': time.time() - self.iter_st})
         self.iter_st = time.time()
     
     def after_train_epoch(self, runner):
+        # 每个epoch都把delta time更新进log_buffer
         self.epoch_time.append(time.time()-self.epoch_st)
         self.epoch_st = time.time()
     
     def after_run(self, runner):
+        # 显示总时间
         self.log(runner)
+"""
