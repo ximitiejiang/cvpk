@@ -19,10 +19,10 @@ class LoggerHook(Hook):
     # 旧版python写法是继承class xxx(ABCMeta),新版写法是定义__metaclass__=ABCMeta
     # 抽象类不能被实例化，且抽象类中抽象方法是必须被重写
 
-    def __init__(self, config, ignore_last=True, reset_flag=False):
+    def __init__(self, config, reset_flag=False):
         # 所有子类Logger共用该init，初始化interval代表n iter
         self.interval = config['interval']
-        self.ignore_last = ignore_last
+        self.ignore_last = config['ignore_last']
         self.reset_flag = reset_flag
 
     @abstractmethod

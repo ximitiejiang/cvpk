@@ -61,11 +61,11 @@ optimizer_config/log_config/
 """
 optimizer_config = dict(grad_clip=None)
 lr_config = dict(policy='step', step=2)
-#text_config = dict(interval = 0)     # 输出iter数的间隔，0表示不输出
 checkpoint_config = dict(
     interval=1, save_optimizer=True, out_dir=checkpoints_dir)  # -1表示不保存，n次/epoch
 logger_config = dict(
-    interval=200, ignore_last=False, logs = ['LoggerTextHook'])  # 可扩展logs的类名
+    interval=200, ignore_last=True, 
+    logs = ['LoggerTextHook','LoggerVisdomHook'])  # ignore_last=true则不一定取epoch结尾一点。
 
 
 
