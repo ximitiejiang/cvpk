@@ -298,22 +298,21 @@ class Runner():
 
                 imgs = imgs.float().cuda()  # 这里to(device)需要保证imgs为torch.float32类型
                 labels = labels.cuda()      # label为torch.int64
-                 
+                # 计算输出 
                 pred = self.model(imgs)
-                # 复杂loss则通过loss function导入计算            
+                # 计算loss            
                 loss = torch.nn.CrossEntropyLoss()(pred,labels)
-#                loss = F.cross_entropy(pred, labels)
-                 
-                # outputs作为汇总变量，传入hooks
-                acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))
-                log_vars = OrderedDict()
-                log_vars['loss'] = loss.item()
-                log_vars['acc_top1'] = acc_top1.item()
-                log_vars['acc_top5'] = acc_top5.item()
+                # 计算精度
+                acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))        
                 
-                # 更新2个主参数容器： 
-                self.outputs = dict(loss=loss, log_vars=log_vars, num_samples=imgs.size(0))
-                self.log_buffer.update(self.outputs['log_vars'])                                
+                to_buffer = OrderedDict(loss=loss.item(), 
+                                        acc_top1=acc_top1.item(),
+                                        acc_top5=acc_top5.item())
+                self.log_buffer.update(to_buffer)
+                
+                self.batch_output = dict(loss=loss, 
+                                         to_buffer=to_buffer, 
+                                         num_samples=imgs.size(0))   # 最后一轮num_samples不同                          
                 self.call_hook('after_train_iter')
                 
                 self._inner_iter += 1
