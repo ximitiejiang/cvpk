@@ -13,6 +13,9 @@ Created on Thu Dec  6 14:58:50 2018
 进一步源码参考：https://github.com/ultralytics/yolov3
 源码也基于coco数据集
 
+同时针对mmdetection这个高级代码库，参考安装https://blog.csdn.net/hajlyx/article/details/83542167
+进一步升级slcv的框架结构
+
 """
 import torch
 from torch.utils.data import DataLoader
@@ -45,6 +48,15 @@ def main():
     model_cfg_path = os.path.abspath(cfg.model_cfg)
     model = Darknet(model_cfg_path, img_size=416)
     model.apply(weights_init_normal)
+    
+    #yolo增加weights
+    latest_weights_file = os.path.join(weights_path, 'latest.pt')
+    best_weights_file = os.path.join(weights_path, 'best.pt')
+    weights_path = '.slcv.weights_of_models'
+    DARKNET_WEIGHTS_FILENAME = 'darknet53.conv.74'
+    def_weight_file = os.path.join(weights_path, DARKNET_WEIGHTS_FILENAME)
+    
+    
     #optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
     optimizer = torch.optim.SGD(
         filter(lambda p: p.requires_grad, model.parameters()), 
