@@ -323,7 +323,22 @@ class Runner():
 
         self.call_hook('after_val_epoch')
     
-    def test(self):
-        """测试模块
+    def test(self, imgs, cfg, device='cuda:0'):
+        """测试模块：参考mmdetection的inference.py中inference_detector()
         """
-        pass
+        img_transform = ImageTransform()
+        model = model.to(device)
+        model.eval()
+        
+        if not isinstance(imgs, list): # 单张图
+            img = mmcv.imread(img)
+            data =_prepare_data
+        else:  # 多张图
+            return
+        
+        
+        
+        
+        
+        
+        
