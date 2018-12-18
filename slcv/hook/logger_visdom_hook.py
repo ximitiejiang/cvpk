@@ -6,14 +6,18 @@ Created on Wed Dec  5 10:13:15 2018
 @author: ubuntu
 """
 import visdom
-from .hook import Hook
+import numpy as np
+from .logger_hook import LoggerHook
 
-class LoggerVisdomHook(Hook):
+class LoggerVisdomHook(LoggerHook):
     
     def __init__(self, log_config):
         """输入为log_config dict: {}"""
-        super().__init__()
+        super().__init__(log_config)
         self.vis = visdom.Visdom(env='slcv')
+        self.m=0
+        self.n=0
+        print('vis init finish!')
     
     def log(self,runner):
         """数据显示到终端"""
@@ -21,17 +25,17 @@ class LoggerVisdomHook(Hook):
         xlabel = 'n_iters'
         # loss曲线
         self.vis.line(X=[num_x],
-              Y=[runner.log_buffer.average_output['loss']],
-              opts=dict(markers=False,xlabel=xlabel,ylabel='loss'),
-              win='loss',
-              name='loss',
-              update='append')
-        # acc_top5曲线
+                      Y=[runner.log_buffer.average_output['loss']],
+                      opts=dict(markers=False,xlabel=xlabel,ylabel='loss'),
+                      win='loss',
+                      name='loss',
+                      update='append')
+        # acc_topk曲线
         self.vis.line(X=[num_x],
-                      Y=[runner.log_buffer.average_output['acc_top5']],
+                      Y=[runner.log_buffer.average_output['acc_topk']],
                       opts=dict(markers=False,xlabel=xlabel,ylabel='acc'),
                       win='accuracy',
-                      name='acc_top5',
+                      name='acc_top{}'.format(runner.cfg.topk),
                       update='append')
         # acc_top1曲线
         self.vis.line(X=[num_x],

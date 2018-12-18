@@ -1,42 +1,44 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Dec  2 17:49:59 2018
+Created on Tue Nov 13 18:03:28 2018
 
 @author: ubuntu
+
+实践一下自己的框架：基于trainer类进行迁移学习
+
 """
 
-from slcv.dataset.existdata import exist_datasets, data_transform
 from torch.utils.data import DataLoader
 from slcv.runner.runner import Runner
-from slcv.model.lenet import LeNet5
 from slcv.cfg.config import Config
 import torch
+from slcv.model.pretrained_models import pretrained_models
+from slcv.dataset.dogcat import DogCat
 
 def main():
     # 0. 固定设置
-    cfg = Config().fromfile('../slcv/cfg/cfg_lenet_cifar10.py')  # 需要写相对路径
+    cfg = Config().fromfile('../slcv/cfg/cfg_resnet18_dogcat.py')  # 需要写相对路径
     
     # 1. 数据
-    transform = data_transform(
+#    transform = data_transform(
+#        train=True, 
+#        input_size = cfg.input_size, 
+#        mean = cfg.mean, 
+#        std = cfg.std)
+    trainset = DogCat(
+        cfg.train_root, 
+        transform=None,    # dogcat数据集自带了transform
         train=True, 
-        input_size = cfg.input_size, 
-        mean = cfg.mean, 
-        std = cfg.std)
-    trainset = exist_datasets(
-        cfg.dataset_name, 
-        root=cfg.data_root, 
-        train=True, 
-        transform =transform, 
-        download=False)
+        test=False)
     trainloader = DataLoader(
-        trainset, 
-        batch_size=cfg.batch_size, 
-        shuffle=True, 
-        num_workers=2)
+        trainset,
+        batch_size = cfg.batch_size,
+        shuffle = True,
+        num_workers = 2)
     
     # 2. 模型
-    model = LeNet5(num_classes=cfg.num_classes, input_layers=cfg.input_layers)
+    model = pretrained_models(model_name='resnet18', num_classes=cfg.num_classes)
     if torch.cuda.device_count() > 0 and len(cfg.gpus) == 1:
         model = model.cuda()
     elif torch.cuda.device_count() > 1 and len(cfg.gpus) > 1:  # 数据并行模型
@@ -48,7 +50,8 @@ def main():
     runner.register_hooks(
             cfg.optimizer_config,
             cfg.checkpoint_config,
-            cfg.logger_config)
+            cfg.logger_config
+            )
     # 恢复训练
     if cfg.resume_from is not None:
         runner.resume(cfg.resume_from, resume_optimizer=True, map_location='default')  # 确保map_location与cfg的定义一致
@@ -59,4 +62,5 @@ def main():
     runner.train()
 
 if __name__=='__main__':
-    main()
+    main()        
+

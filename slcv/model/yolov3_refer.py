@@ -82,11 +82,11 @@ def build_targets(pred_boxes, pred_conf, pred_cls, target, anchor_wh, nA, nC, nG
             FN[b, :nTb] = 1
 
         # Convert to position relative to box
-        TC[b, :nTb], gx, gy, gw, gh = t[:, 0].long(), \
-                                      t[:, 1] * nG, \    # label x * nG
-                                      t[:, 2] * nG, \    # label y * nG
-                                      t[:, 3] * nG, \    # label w * nG
-                                      t[:, 4] * nG       # label h * nG
+        TC[b, :nTb] = t[:, 0].long()
+        gx = t[:, 1] * nG   # label x * nG
+        gy = t[:, 2] * nG   # label y * nG
+        gw = t[:, 3] * nG   # label w * nG
+        gh = t[:, 4] * nG   # label h * nG
         # Get grid box indices and prevent overflows (i.e. 13.01 on 13 anchors)
         gi = torch.clamp(gx.long(), min=0, max=nG - 1)
         gj = torch.clamp(gy.long(), min=0, max=nG - 1)

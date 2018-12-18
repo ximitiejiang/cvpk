@@ -6,6 +6,7 @@ from .hook import Hook
 class TimerHook(Hook):
     """记录各iter/epoch的运行时间: 可以在任何位置调用log()打印输出
     平均iter和平均epoch时间
+    最终显示由logger_text_hook实现
     """
     def before_run(self, runner):
         self.total_start = time.time()

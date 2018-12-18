@@ -6,7 +6,6 @@ Created on Sun Dec  2 17:36:46 2018
 @author: ubuntu
 """
 import torch
-import sys, os, time
 from collections import OrderedDict
 from ..hook.hook import Hook
 from ..hook.optimizer_hook import OptimizerHook
@@ -15,52 +14,9 @@ from ..hook.checkpoint_hook import CheckpointHook
 from ..hook.log_buffer import LogBuffer
 from ..hook.logger_text_hook import LoggerTextHook
 from ..hook.logger_visdom_hook import LoggerVisdomHook
+import os, time
 
-#from ..hook.text_hook import TextHook
-#from ..hook.visdom_logger_hook import VisdomLoggerHook
-
-def accuracy(output, target, topk=(1, )):
-    """Computes the precision@k for the specified values of k"""
-    with torch.no_grad(): # with内的tensor均不更新梯度requires_grad =False
-        maxk = max(topk)
-        batch_size = target.size(0)
-
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-        res = []
-        for k in topk:
-            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
-            res.append(correct_k.mul_(100.0 / batch_size))
-        return res
-
-def obj_from_dict(info, parrent=None, default_args=None):
-    """基于字典,父类, 参数，来生成一个对象
-    Args:
-        %info (dict)    dict类型的对象参数,需要type字段定义子类，该type可以等于如下
-                        的优化器名字('Adam', 'SGD', 'RMSprop'...等价于pytorch优化器描述)
-        % parrent       目标object父类
-        % default_args  初始化object的默认参数
-    Returns:
-        目标对象
-    """
-    assert isinstance(info, dict) and 'type' in info
-    assert isinstance(default_args, dict) or default_args is None
-    args = info.copy()
-    obj_type = args.pop('type') # 获得子类的名称
-    if isinstance(obj_type, str):
-        if parrent is not None:
-            obj_type = getattr(parrent, obj_type)  # 基于父类和子类，创建子类对象
-        else:
-            obj_type = sys.modules[obj_type]
-    elif not isinstance(obj_type, type):
-        raise TypeError('type must be a str or valid type, but got {}'.format(
-            type(obj_type)))
-    if default_args is not None:
-        for name, value in default_args.items():
-            args.setdefault(name, value)
-    return obj_type(**args)
+from .utils import accuracy, obj_from_dict
 
 
 class Runner():
@@ -303,11 +259,11 @@ class Runner():
                 # 计算loss            
                 loss = torch.nn.CrossEntropyLoss()(pred,labels)
                 # 计算精度
-                acc_top1,acc_top5 = accuracy(pred,labels, topk=(1,5))        
+                acc_top1,acc_topk = accuracy(pred,labels, topk=(1,self.cfg.topk))        
                 
                 to_buffer = OrderedDict(loss=loss.item(), 
                                         acc_top1=acc_top1.item(),
-                                        acc_top5=acc_top5.item())
+                                        acc_topk=acc_topk.item())
                 self.log_buffer.update(to_buffer)
                 
                 self.batch_output = dict(loss=loss, 
