@@ -3,8 +3,10 @@
     基础的特殊方法：__getitem__, __len__
     普通方法：
 子类：XMLDataset(CustomDataset), CocoDataset(CustomDataset)
+    重写load_annotations()
+    重写get_ann_info()
     
-孙类：VOCDataset(XMLDataset)
+二级子类：VOCDataset(XMLDataset)
     额外定义了__init__
     额外导入了voc class
 

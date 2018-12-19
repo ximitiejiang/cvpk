@@ -5,10 +5,9 @@ Created on Mon Nov 19 15:14:26 2018
 
 @author: suliang
 """
-
-from torch.utils.data import Dataset, DataLoader
+import numpy as np
+import mmcv
 from torchvision import datasets, transforms
-import matplotlib.pyplot as plt
 
 
 def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]):
@@ -33,6 +32,40 @@ def data_transform(train=True, input_size = 224, mean = [0.485, 0.456, 0.406], s
                                         transforms.Normalize(mean,std)
                                        ])
     return transform
+
+class ImageTransform(object):
+    """Preprocess an image.
+
+    1. rescale the image to expected size
+    2. normalize the image
+    3. flip the image (if needed)
+    4. pad the image (if needed)
+    5. transpose to (c, h, w)
+    """
+
+    def __init__(self,
+                 mean=(0, 0, 0),
+                 std=(1, 1, 1),
+                 to_rgb=True,
+                 size_divisor=None):
+        self.mean = np.array(mean, dtype=np.float32)
+        self.std = np.array(std, dtype=np.float32)
+        self.to_rgb = to_rgb
+        self.size_divisor = size_divisor
+
+    def __call__(self, img, scale, flip=False):
+        img, scale_factor = mmcv.imrescale(img, scale, return_scale=True)
+        img_shape = img.shape
+        img = mmcv.imnormalize(img, self.mean, self.std, self.to_rgb)
+        if flip:
+            img = mmcv.imflip(img)
+        if self.size_divisor is not None:
+            img = mmcv.impad_to_multiple(img, self.size_divisor)
+            pad_shape = img.shape
+        else:
+            pad_shape = img_shape
+        img = img.transpose(2, 0, 1)
+        return img, img_shape, pad_shape, scale_factor
 
 
 def exist_datasets(name, root, annFile = None, train=True, transform =None, download=False):
