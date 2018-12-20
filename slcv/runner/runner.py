@@ -15,8 +15,10 @@ from ..hook.log_buffer import LogBuffer
 from ..hook.logger_text_hook import LoggerTextHook
 from ..hook.logger_visdom_hook import LoggerVisdomHook
 import os, time
+from ..dataset.existdata import ImageTransform
 
 from .utils import accuracy, obj_from_dict
+import mmcv
 
 
 class Runner():
@@ -304,10 +306,9 @@ class Runner():
         """验证模块：待调试
         """
         self.model.eval()
-        self.data_loader = data_loader
         self.call_hook('before_val_epoch')
 
-        for i, data_batch in enumerate(data_loader):
+        for i, data_batch in enumerate(self.dataloader):
             self._inner_iter = i
             self.call_hook('before_val_iter')
             with torch.no_grad():
@@ -322,22 +323,57 @@ class Runner():
             self.call_hook('after_val_iter')
 
         self.call_hook('after_val_epoch')
+        
     
     def test(self, imgs, cfg, device='cuda:0'):
-        """测试模块：参考mmdetection的inference.py中inference_detector()
+        """新增test模块：用于图像预测任务的测试
         """
-        img_transform = ImageTransform()
+        # transform对象：to_rgb是在normalize时把bgr转换为rgb(假定imread函数是mmcv的默认读取出来bgr)，
+        # size_divisor是对图像进行padding的参数
+        img_transform = ImageTransform(cfg.mean, cfg.std, to_rgb=True, size_divisor=None)
+        
         model = model.to(device)
         model.eval()
         
         if not isinstance(imgs, list): # 单张图
-            img = mmcv.imread(img)
+            img = mmcv.imread(imgs)
             data =_prepare_data
+            
+            ori_shape = imgs.shape
+            img, img_shape, pad_shape, scale_factor = img_transform(
+                img,scale =cfg.data.test.img_scale)
+            img = to_tensor(img).to(device).unsqueeze(0)
+            
+            with torch.no_grad():
+                result = self.model()
+            
         else:  # 多张图
             return
         
         
+    def inference(self, model, imgs, cfg, device='cuda:0'):
+        """新增inference模块用来在detection任务中进行单张或多张图片的检测效果生成
         
+        """
+        img_transform = ImageTransform(cfg.mean, cfg.std, to_rgb=True, size_divisor=None)
+        
+        model = model.to(device)
+        model.eval()
+        
+        if not isinstance(imgs, list): # 单张图
+            img = mmcv.imread(imgs)
+            data =_prepare_data
+            
+            ori_shape = imgs.shape
+            img, img_shape, pad_shape, scale_factor = img_transform(
+                img,scale =cfg.data.test.img_scale)
+            img = to_tensor(img).to(device).unsqueeze(0)
+            
+            with torch.no_grad():
+                result = self.model()
+            
+        else:  # 多张图
+            return
         
         
         

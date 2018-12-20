@@ -12,8 +12,8 @@ from collections import OrderedDict,defaultdict
 class RunnerYolo(Runner):
     """定义一个runner的子类，重写train函数
     """
-    def __init__(self, dataloader, model, optimizer, cfg):
-        super().__init__(dataloader, model, optimizer, cfg)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 #        self.dataloader = dataloader
 #        self.model = model
 #        if optimizer is not None:
