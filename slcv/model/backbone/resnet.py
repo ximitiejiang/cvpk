@@ -1,3 +1,7 @@
+"""
+renet模型：来自mmdetection
+"""
+
 import logging
 
 import torch.nn as nn
@@ -293,6 +297,7 @@ class ResNet(nn.Module):
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)
             x = res_layer(x)
+            # 获得resnet每个layer的输出
             if i in self.out_indices:
                 outs.append(x)
         if len(outs) == 1:

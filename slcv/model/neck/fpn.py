@@ -1,9 +1,13 @@
+"""
+FPN模型：来自mmdetection
+"""
+
 import torch.nn as nn
 import torch.nn.functional as F
 
 # TODO: 改成从weight_init导入
-from mmcv.cnn import kaiming_init, constant_init
-from ..weight_init import xavier_init
+from mmcv.cnn import kaiming_init, constant_init, xavier_init
+#from ..weight_init import xavier_init
 
 
 norm_cfg = {'BN': nn.BatchNorm2d, 'SyncBN': None, 'GN': None}
@@ -104,9 +108,9 @@ class ConvModule(nn.Module):
 class FPN(nn.Module):
 
     def __init__(self,
-                 in_channels,
-                 out_channels,
-                 num_outs,
+                 in_channels,  # [256, 512, 1024, 2048]
+                 out_channels, # [256] 
+                 num_outs,     # 5
                  start_level=0,
                  end_level=-1,
                  add_extra_convs=False,
@@ -136,7 +140,8 @@ class FPN(nn.Module):
         self.lateral_convs = nn.ModuleList()
         self.fpn_convs = nn.ModuleList()
 
-        for i in range(self.start_level, self.backbone_end_level):
+        for i in range(self.start_level, self.backbone_end_level):  # [0, 4]
+            # lateral layer代表横向连接层
             l_conv = ConvModule(
                 in_channels[i],
                 out_channels,
@@ -145,6 +150,7 @@ class FPN(nn.Module):
                 bias=self.with_bias,
                 activation=self.activation,
                 inplace=False)
+            # fpn layer代表top-down层
             fpn_conv = ConvModule(
                 out_channels,
                 out_channels,
@@ -198,6 +204,7 @@ class FPN(nn.Module):
         # build top-down path
         used_backbone_levels = len(laterals)
         for i in range(used_backbone_levels - 1, 0, -1):
+            # F.interpolate就是upsample上采样操作，新版都用interpolate代替了upsample
             laterals[i - 1] += F.interpolate(
                 laterals[i], scale_factor=2, mode='nearest')
 
@@ -221,3 +228,8 @@ class FPN(nn.Module):
                     # BUG: we should add relu before each extra conv
                     outs.append(self.fpn_convs[i](outs[-1]))
         return tuple(outs)
+
+if __name__ == "__main__":
+    from slcv.cfg.config import Config
+    cfg = Config.fromfile('.cfg_rpn_r50_fpn_1x.py')
+    fpn = FPN(cfg.model.neck)
