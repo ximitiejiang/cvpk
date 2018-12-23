@@ -216,13 +216,13 @@ class ResNet(nn.Module):
     }
 
     def __init__(self,
-                 depth,
-                 num_stages=4,
-                 strides=(1, 2, 2, 2),
-                 dilations=(1, 1, 1, 1),
-                 out_indices=(0, 1, 2, 3),
+                 depth,     # resnet的层数18/34/50/101/152
+                 num_stages=4,  # resnet的级数，分4级layer1，layer2，layer3，layer4
+                 strides=(1, 2, 2, 2),  # 每一级的步长
+                 dilations=(1, 1, 1, 1),  # 每一级的尺寸扩张比
+                 out_indices=(0, 1, 2, 3),  # 
                  style='pytorch',
-                 frozen_stages=-1,
+                 frozen_stages=-1,  # 各级参数是否冻结
                  bn_eval=True,
                  bn_frozen=False,
                  with_cp=False):
