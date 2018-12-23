@@ -120,19 +120,20 @@ class FPN(nn.Module):
         assert isinstance(in_channels, list)
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.num_ins = len(in_channels)
-        self.num_outs = num_outs
+        self.num_ins = len(in_channels)  # 4
+        self.num_outs = num_outs         # 5
         self.activation = activation
         self.with_bias = normalize is None
 
-        if end_level == -1:
+        if end_level == -1:  # FPN的end_level=-1
             self.backbone_end_level = self.num_ins
             assert num_outs >= self.num_ins - start_level
-        else:
+        else: # end_level不等于-1的情况用在retinanet等需要增加extra level的案例中
             # if end_level < inputs, no extra level is allowed
             self.backbone_end_level = end_level
             assert end_level <= len(in_channels)
             assert num_outs == end_level - start_level
+            
         self.start_level = start_level
         self.end_level = end_level
         self.add_extra_convs = add_extra_convs
@@ -141,7 +142,7 @@ class FPN(nn.Module):
         self.fpn_convs = nn.ModuleList()
 
         for i in range(self.start_level, self.backbone_end_level):  # [0, 4]
-            # lateral layer代表横向连接层
+            # lateral layer代表横向连接层, kernel size = 1x1
             l_conv = ConvModule(
                 in_channels[i],
                 out_channels,
@@ -150,7 +151,7 @@ class FPN(nn.Module):
                 bias=self.with_bias,
                 activation=self.activation,
                 inplace=False)
-            # fpn layer代表top-down层
+            # fpn layer代表top-down层, kernel size = 3x3
             fpn_conv = ConvModule(
                 out_channels,
                 out_channels,
@@ -195,7 +196,7 @@ class FPN(nn.Module):
     def forward(self, inputs):
         assert len(inputs) == len(self.in_channels)
 
-        # build laterals
+        # build laterals: inputs[0]~inputs[3]  -> lateral_conv(x0)~lateral_conv(x3)
         laterals = [
             lateral_conv(inputs[i + self.start_level])
             for i, lateral_conv in enumerate(self.lateral_convs)
@@ -203,8 +204,9 @@ class FPN(nn.Module):
 
         # build top-down path
         used_backbone_levels = len(laterals)
-        for i in range(used_backbone_levels - 1, 0, -1):
+        for i in range(used_backbone_levels - 1, 0, -1):  # (3, 0, -1)= [3,2,1]
             # F.interpolate就是upsample上采样操作，新版都用interpolate代替了upsample
+            # (14x14) + (14x14) -> (14 x14)， 同理得到(28x28), (56x56)
             laterals[i - 1] += F.interpolate(
                 laterals[i], scale_factor=2, mode='nearest')
 
