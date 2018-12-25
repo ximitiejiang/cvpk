@@ -253,9 +253,9 @@ class Runner():
             self.call_hook('before_train_epoch')            
             for j, (imgs, labels) in enumerate(self.dataloader):
                 self.call_hook('before_train_iter')
-
                 imgs = imgs.float().cuda()  # 这里to(device)需要保证imgs为torch.float32类型
                 labels = labels.cuda()      # label为torch.int64
+
                 # 计算输出 
                 pred = self.model(imgs)
                 # 计算loss            

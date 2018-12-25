@@ -1,3 +1,6 @@
+"""rpn_head类，用于基于feature map进行转化分别生成rpn_cls, rpn_reg进行分类和回归
+"""
+
 from __future__ import division
 
 import numpy as np
@@ -14,9 +17,15 @@ from ..utils import normal_init
 
 
 def multi_apply(func, *args, **kwargs):
-    pfunc = partial(func, **kwargs) if kwargs else func
+    """用于区分输入参数：从而分解成2个函数，每个函数对应的输入参数不同
+    如果传入kwargs, 则生成pfunc，此时pfunc的默认参数是**kwargs，外部输入*args参数即可
+    如果没有kwargs传入，则生成pfunc=func，pfunc没有默认参数，外部输入*args参数
+    从而两种情况下统一用pfunc(*args)调用
+    
+    """
+    pfunc = partial(func, **kwargs) if kwargs else func  # partial()函数为
     map_results = map(pfunc, *args)
-    return tuple(map(list, zip(*map_results)))
+    return tuple(map(list, zip(*map_results)))  # 把map_result先解包并通过zip()函数生成迭代器，最后通过map函数转换成list(这里list作为一个函数传入map)
 
 
 class AnchorGenerator(object):
@@ -145,7 +154,7 @@ class RPNHead(nn.Module):
         self.use_sigmoid_cls = use_sigmoid_cls
 
         self.anchor_generators = []
-        for anchor_base in self.anchor_base_sizes:
+        for anchor_base in self.anchor_base_sizes:  # [4,8,16,32,64] 5种规格的base_anchor
             self.anchor_generators.append(
                 AnchorGenerator(anchor_base, anchor_scales, anchor_ratios))
         self.rpn_conv = nn.Conv2d(in_channels, feat_channels, 3, padding=1)
