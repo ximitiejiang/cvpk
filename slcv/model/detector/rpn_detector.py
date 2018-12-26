@@ -1,3 +1,8 @@
+"""RPN detector
+来自mmdetection
+
+"""
+
 import mmcv
 
 from mmdet.core import tensor2imgs, bbox_mapping
@@ -36,7 +41,11 @@ class RPN(BaseDetector, RPNTestMixin):
             x = self.neck(x)
         return x
 
-    def forward_train(self, img, img_meta, gt_bboxes=None):
+    def forward_train(self, img, img_meta, gt_bboxes=None, **kwargs): 
+        """ 前向计算
+        TODO：在base里边传入的形参是img, img_meta, **kwargs，但这里没写**kwargs，导致**kwargs解包出来的参数没有接收方而报错
+        (我加了一个**kwargs)
+        """
         if self.train_cfg.rpn.get('debug', False):
             self.rpn_head.debug_imgs = tensor2imgs(img)
 

@@ -170,10 +170,12 @@ class Runner():
             
     def load_checkpoint(self, filename, map_location=None, strict=False):
         """加载checkpoint，把state_dict传递给model，并返回checkpoint字典(可用于提取checkpoint中其他信息)
-        输入：filename, 
-        map_location: 可以选择''
-        strict(是否允许不同参数)
-        返回dict
+        Args：
+            filename, 
+            map_location: 可以选择''
+            strict(是否允许不同参数)
+        Return:
+            dict
         torch.load()参考：https://pytorch.org/docs/stable/torch.html
         to same cpu or GPU: torch.load('gen_500000.pkl')
         to->cpu: torch.load('gen.pkl', map_location=lambda storage, loc: storage)
