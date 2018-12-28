@@ -12,6 +12,11 @@ Created on Thu Dec 27 16:58:50 2018
 
 2. 有三种可选的backend后端：gloo, mpi, tcp。其中gloo支持GPU
 
+3.基本概念：
+- reduce: 规约，也称为缩减。就是把一组数据缩减为一个较小的集合。主要的规约操作
+  包括MAX/MIN/SUM...
+- 
+
 
 """
 
