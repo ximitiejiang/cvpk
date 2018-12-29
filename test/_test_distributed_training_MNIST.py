@@ -79,7 +79,7 @@ class Net(nn.Module):
 def partition_dataset():
     """ Partitioning MNIST """
     dataset = datasets.MNIST(
-        root='slcv/data/mnist', 
+        root='/home/ubuntu/suliang_git/slcv/data/mnist',     # 文件目录软连接问题待调试
         train=True, 
         transform=transforms.Compose([
             transforms.ToTensor(),
@@ -95,7 +95,7 @@ def partition_dataset():
 #            transforms.Normalize((0.1307, ), (0.3081, ))
 #        ]))
     size = dist.get_world_size()
-    bsz = 128 / float(size)
+    bsz = int(128 / float(size))
     partition_sizes = [1.0 / size for _ in range(size)]
     partition = DataPartitioner(dataset, partition_sizes)
     partition = partition.use(dist.get_rank())
