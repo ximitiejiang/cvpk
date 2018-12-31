@@ -268,6 +268,7 @@ def imflip(img, direction='horizontal'):
 # --------------------------6. to tensor--------------------------
 from mmcv import Config
 from mmdet.datasets import get_dataset
+from PIL import Image
 import cv2
 if __name__ == '__main__':
     
@@ -281,7 +282,8 @@ if __name__ == '__main__':
     
     if id == 2: #试着单独处理一张照片看看
         path = 'test.jpg'
-        img = cv2.imread(path)    # cv2读出来的是(h, w, c)
+#        img = cv2.imread(path)    # cv2.imread()读出来1的是(h, w, c)=(350,500,3)
+        img = Image.open(path)     # PIL.Image.open()读出来的是(w,h)
         img_scales=(1000, 600)
         img_scales = img_scales if isinstance(img_scales, list) else [img_scales]  # 转化为list[(1000, 600)]
         
