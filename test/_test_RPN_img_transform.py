@@ -267,12 +267,14 @@ def imflip(img, direction='horizontal'):
 
 # --------------------------6. to tensor--------------------------
 from mmcv import Config
-from mmdet.datasets import get_dataset
+#from mmdet.datasets import get_dataset
 from PIL import Image
 import cv2
+from torchvision import transforms
+import matplotlib.pyplot as plt
 if __name__ == '__main__':
     
-    id = 2
+    id = 3
     
     if id == 1: # 验证数据集出来的数据是不是处理的到位了(所有transform都加进去了)
         cfg = Config.fromfile('./cfg_rpn_r50_fpn_1x.py') # 自定义基于voc的cfg
@@ -280,16 +282,26 @@ if __name__ == '__main__':
         data = train_dataset[1]
         print(data['img'].data.shape)
     
-    if id == 2: #试着单独处理一张照片看看
+    if id == 2: #处理一张照片: 用opencv + python算法
         path = 'test.jpg'
-#        img = cv2.imread(path)    # cv2.imread()读出来1的是(h, w, c)=(350,500,3)
-        img = Image.open(path)     # PIL.Image.open()读出来的是(w,h)
+        img = cv2.imread(path)    # cv2.imread()读出来1的是(h, w, c)=(350,500,3)
         img_scales=(1000, 600)
         img_scales = img_scales if isinstance(img_scales, list) else [img_scales]  # 转化为list[(1000, 600)]
-        
-        # 定缩放比例
-        img_scale = random_scale(img_scales)
         # 缩放
+        img_scale = random_scale(img_scales)
         img = imrescale(img, img_scale) # 转换成()
+        # normalize
+        
+        #
 
-
+    if id==3:  #处理一张照片，用pytorch
+        path = 'test.jpg'
+        img = Image.open(path)     # PIL.Image.open()读出来的是(w,h)
+        plt.imshow(img)
+        transform = transforms.Compose([transforms.RandomResizedCrop(224),
+                                        transforms.RandomHorizontalFlip(),
+                                        transforms.ToTensor(),
+                                        transforms.Normalize([0.5,0.5,0.5], [0.5,0.5,0.5])
+                                        ])
+        img = transform(img)
+    
