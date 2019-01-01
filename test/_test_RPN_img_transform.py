@@ -241,8 +241,6 @@ def impad_to_multiple(img, divisor, pad_val=0):
     pad_w = int(np.ceil(img.shape[1] / divisor)) * divisor
     return impad(img, (pad_h, pad_w), pad_val)
 
-
-
 # --------------------------4. flip--------------------------
 def imflip(img, direction='horizontal'):
     """Flip an image horizontally or vertically.
@@ -260,12 +258,79 @@ def imflip(img, direction='horizontal'):
     else:
         return np.flip(img, axis=0)
 
-
 # --------------------------5. transpose--------------------------
 #img = img.transpose(2, 0, 1)
 
-
 # --------------------------6. to tensor--------------------------
+def to_tensor(data):
+    """Convert objects of various python types to :obj:`torch.Tensor`.
+
+    Supported types are: :class:`numpy.ndarray`, :class:`torch.Tensor`,
+    :class:`Sequence`, :class:`int` and :class:`float`.
+    """
+    if isinstance(data, torch.Tensor):
+        return data
+    elif isinstance(data, np.ndarray):
+        return torch.from_numpy(data)
+    elif isinstance(data, Sequence) and not mmcv.is_str(data):
+        return torch.tensor(data)
+    elif isinstance(data, int):
+        return torch.LongTensor([data])
+    elif isinstance(data, float):
+        return torch.FloatTensor([data])
+    else:
+        raise TypeError('type {} cannot be converted to tensor.'.format(
+            type(data)))        
+
+# --------------------------7. gt_bbox--------------------------
+# 传入gt_bbox, 原图尺寸img_shape, 缩放比例scale_factor, 是否翻转flip
+# gt_bboxes = self.bbox_transform(gt_bboxes, img_shape, scale_factor,flip)  
+            
+flip = True if np.random.rand() < self.flip_ratio else False
+    
+def bbox_flip(bboxes, img_shape):
+    """Flip bboxes horizontally.
+
+    Args:
+        bboxes(ndarray): shape (..., 4*k)
+        img_shape(tuple): (height, width)
+    """
+    assert bboxes.shape[-1] % 4 == 0
+    w = img_shape[1]
+    flipped = bboxes.copy()
+    flipped[..., 0::4] = w - bboxes[..., 2::4] - 1
+    flipped[..., 2::4] = w - bboxes[..., 0::4] - 1
+    return flipped
+
+
+class BboxTransform(object):
+    """Preprocess gt bboxes.
+
+    1. rescale bboxes according to image size
+    2. flip bboxes (if needed)
+    3. pad the first dimension to `max_num_gts`
+    """
+
+    def __init__(self, max_num_gts=None):
+        self.max_num_gts = max_num_gts
+
+    def __call__(self, bboxes, img_shape, scale_factor, flip=False):
+        gt_bboxes = bboxes * scale_factor
+        if flip:
+            gt_bboxes = bbox_flip(gt_bboxes, img_shape)
+        gt_bboxes[:, 0::2] = np.clip(gt_bboxes[:, 0::2], 0, img_shape[1])
+        gt_bboxes[:, 1::2] = np.clip(gt_bboxes[:, 1::2], 0, img_shape[0])
+        if self.max_num_gts is None:
+            return gt_bboxes
+        else:
+            num_gts = gt_bboxes.shape[0]
+            padded_bboxes = np.zeros((self.max_num_gts, 4), dtype=np.float32)
+            padded_bboxes[:num_gts, :] = gt_bboxes
+            return padded_bboxes    
+
+
+
+# ------------------------------------------------------------    
 from mmcv import Config
 #from mmdet.datasets import get_dataset
 from PIL import Image
