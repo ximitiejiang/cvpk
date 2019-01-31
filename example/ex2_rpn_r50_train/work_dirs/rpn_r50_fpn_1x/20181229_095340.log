@@ -1,0 +1,12 @@
+2018-12-29 09:53:40,813 - INFO - Start running, host: ubuntu@ubun, work_dir: /home/ubuntu/suliang_git/mmdetection/ex2_rpn_r50_train/work_dirs/rpn_r50_fpn_1x
+2018-12-29 09:53:40,814 - INFO - workflow: [('train', 1)], max: 1 epochs
+2018-12-29 10:02:16,557 - INFO - Start running, host: ubuntu@ubun, work_dir: /home/ubuntu/suliang_git/mmdetection/ex2_rpn_r50_train/work_dirs/rpn_r50_fpn_1x
+2018-12-29 10:02:16,558 - INFO - workflow: [('train', 1)], max: 1 epochs
+2018-12-29 14:20:51,633 - INFO - Start running, host: ubuntu@ubun, work_dir: /home/ubuntu/suliang_git/mmdetection/ex2_rpn_r50_train/work_dirs/rpn_r50_fpn_1x
+2018-12-29 14:20:51,634 - INFO - workflow: [('train', 1)], max: 1 epochs
+2018-12-29 15:39:35,332 - INFO - Start running, host: ubuntu@ubun, work_dir: /home/ubuntu/suliang_git/mmdetection/ex2_rpn_r50_train/work_dirs/rpn_r50_fpn_1x
+2018-12-29 15:39:35,333 - INFO - workflow: [('train', 1)], max: 1 epochs
+2018-12-29 15:44:05,914 - INFO - Start running, host: ubuntu@ubun, work_dir: /home/ubuntu/suliang_git/mmdetection/ex2_rpn_r50_train/work_dirs/rpn_r50_fpn_1x
+2018-12-29 15:44:05,915 - INFO - workflow: [('train', 1)], max: 1 epochs
+2018-12-29 15:44:31,511 - INFO - Start running, host: ubuntu@ubun, work_dir: /home/ubuntu/suliang_git/mmdetection/ex2_rpn_r50_train/work_dirs/rpn_r50_fpn_1x
+2018-12-29 15:44:31,512 - INFO - workflow: [('train', 1)], max: 1 epochs
