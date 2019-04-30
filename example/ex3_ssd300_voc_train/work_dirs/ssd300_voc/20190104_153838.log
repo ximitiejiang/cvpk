@@ -1,2 +1,0 @@
-2019-01-04 15:38:38,845 - INFO - Start running, host: ubuntu@ubun, work_dir: /home/ubuntu/suliang_git/mmdetection/ex3_ssd300_voc_train/work_dirs/ssd300_voc
-2019-01-04 15:38:38,847 - INFO - workflow: [('train', 1)], max: 24 epochs

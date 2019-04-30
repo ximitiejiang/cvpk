@@ -1,2 +1,0 @@
-2018-12-31 14:33:18,619 - INFO - Start running, host: ubuntu@ubun, work_dir: /home/ubuntu/suliang_git/mmdetection/ex2_rpn_r50_train/work_dirs/rpn_r50_fpn_1x
-2018-12-31 14:33:18,621 - INFO - workflow: [('train', 1)], max: 1 epochs
