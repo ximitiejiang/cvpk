@@ -293,7 +293,7 @@ def get_dataset(data_cfg, dataset_class):
     return dset
 
 """ 如下是为了在test dataset进程中创建dataloder的子程序, 待review
-"""
+
 from functools import partial
 #from mmcv.runner import get_dist_info
 #from mmcv.parallel import collate
@@ -337,3 +337,6 @@ def build_dataloader(dataset,
                              **kwargs)
 
     return data_loader
+"""
+def show():
+    print('hello!')
