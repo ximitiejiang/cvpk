@@ -11,6 +11,8 @@ Created on Tue Apr 30 07:17:30 2019
 3. 在根目录文件下创建同名文件夹，并在该同名文件夹下创建__init__文件作为包文件，把相关库代码都拷贝到这个同名文件夹下
 4. 检查setup.py文件语法: python3 setup.py check
     + 该步要用python3，因为我安装了多个版本的python，通常采用python3(对应python3.7，而python对应3.5)，我的setuptools也是安装在3.7里边
+    + 注意：导入语法容易出错，首先需要定义一级仓库名/同名二级仓库名这种结构，然后在一级仓库名下面创建setup.py才能生成仓库名为根目录的目录树
+      同时代码里边所有导入路径都需要改成相对路径，相对于二级仓库名即可。
 5. 打包: 创建可分发的egg，也就是build distribute egg的意思，python3 setup.py bdist_egg
     + 该步会产生build文件夹/cvpk.egg-info文件夹/dist文件夹
     + 在egg文件中会包含相关安装所需的文件
@@ -18,7 +20,8 @@ Created on Tue Apr 30 07:17:30 2019
 6. 安装: 属于从源码安装，先从github下载源码，然后进入该目录运行代码，
     + 开发方式安装: python3 setup.py install develop，在有频繁变更情况下，每次安装都要先卸载原来版本比较麻烦，
       而用develop方式安装，代码不会真的被拷贝到本地python环境site-packages目录，而是在site-package目录创建一个
-      指向当前位置的链接，如果当前位置有改动，会马上反映到site-package里边
+      指向当前位置的链接，如果当前位置有改动，会马上反映到site-package里边，这样就不用每次修改源码就得auto.sh一次。
+      但问题在于，这种安装方式在我机器上报错
     + 用户方式安装: python3 setup.py install (or pip3 install .) 该方式会在如下目录产生一个cvpk-0.1-py3.7.egg的解压缩文件夹
       即在python的site-package目录下/home/ubuntu/anaconda3/lib/python3.7/site-packages/cvpk-0.1-py3.7.egg
 7. 使用: from cvpk.dataset.class_names import voc_classes
@@ -37,6 +40,7 @@ Created on Tue Apr 30 07:17:30 2019
 10. 重新安装：当源代码修改过后，就需要重新安装
     + 需要先重新生成egg: python3 setup.py bdist_egg
     + 再重新安装egg: python3 setup.py install --record record.txt
+    + 这两条写成auto.sh了
 
 """
 
